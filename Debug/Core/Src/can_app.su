@@ -1,0 +1,15 @@
+../Core/Src/can_app.c:58:9:CAN_App_Init	8	static
+../Core/Src/can_app.c:86:6:CAN_App_GetStats	16	static
+../Core/Src/can_app.c:104:6:CAN_SendTask_Main	56	static
+../Core/Src/can_app.c:154:13:CAN_SendHeartbeat	24	static
+../Core/Src/can_app.c:189:13:CAN_SendTestData	24	static
+../Core/Src/can_app.c:227:6:CAN_ReceiveTask_Main	32	static
+../Core/Src/can_app.c:265:13:CAN_ProcessReceivedMessage	24	static
+../Core/Src/can_app.c:303:6:CAN_EXTI_Callback	16	static
+../Core/Src/can_app.c:324:9:CAN_App_SendMessage	48	static
+../Core/Src/can_app.c:356:9:CAN_App_SendRemoteFrame	32	static
+../Core/Src/can_app.c:392:9:CAN_App_SetFilter	24	static
+../Core/Src/can_app.c:420:9:CAN_App_SelfTest	48	static
+../Core/Src/can_app.c:492:13:CAN_PrintMessage	32	static
+../Core/Src/can_app.c:515:6:CAN_App_PrintStatus	32	static
+../Core/Src/can_app.c:541:6:CAN_App_IRQ_Callback	4	static

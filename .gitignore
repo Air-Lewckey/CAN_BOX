@@ -1,36 +1,4 @@
-# STM32CubeIDE生成的文件
-Debug/
-Release/
-.metadata/
-.settings/
-*.launch
-*.tmp
-*.bak
-*.swp
-*~.nib
-local.properties
-.loadpath
-.recommenders
-
-# Eclipse项目文件（保留）
-# .project
-# .cproject
-
-# 编译输出文件
-*.o
-*.elf
-*.bin
-*.hex
-*.map
-*.list
-*.su
-*.d
-
-# 临时文件
-*.log
-*.tmp
-*.temp
-
+# 只忽略系统文件，保留所有项目文件
 # Windows系统文件
 Thumbs.db
 ehthumbs.db
@@ -42,18 +10,5 @@ $RECYCLE.BIN/
 .AppleDouble
 .LSOverride
 
-# 备份文件
-*.bak
-*.backup
+# 临时文件
 *~
-
-# IDE特定文件
-.vscode/
-.idea/
-*.sublime-*
-
-# 用户特定配置
-*.user
-*.suo
-*.userosscache
-*.sln.docstates
