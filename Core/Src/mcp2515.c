@@ -59,10 +59,25 @@ static void MCP2515_ReadRxBuffer(uint8_t buffer, MCP2515_CANMessage_t *message);
 uint8_t MCP2515_SPI_ReadWrite(uint8_t data)
 {
     uint8_t rx_data = 0;
+    HAL_StatusTypeDef status;
     
     // 使用HAL库进行SPI通信
-    if (HAL_SPI_TransmitReceive(&hspi1, &data, &rx_data, 1, MCP2515_SPI_TIMEOUT) != HAL_OK) {
-        // SPI通信失败，返回0xFF表示错误
+    status = HAL_SPI_TransmitReceive(&hspi1, &data, &rx_data, 1, MCP2515_SPI_TIMEOUT);
+    
+    if (status != HAL_OK) {
+        printf("SPI Error: Status=%d, TX=0x%02X\r\n", status, data);
+        
+        // 检查具体错误类型
+        if (status == HAL_TIMEOUT) {
+            printf("SPI Timeout - Check MISO connection\r\n");
+        } else if (status == HAL_ERROR) {
+            printf("SPI Hardware Error - Check configuration\r\n");
+            uint32_t error = HAL_SPI_GetError(&hspi1);
+            printf("SPI Error Code: 0x%08lX\r\n", error);
+        } else if (status == HAL_BUSY) {
+            printf("SPI Busy - Previous operation not completed\r\n");
+        }
+        
         return 0xFF;
     }
     
@@ -194,11 +209,31 @@ void MCP2515_WriteMultipleRegisters(uint8_t address, uint8_t *buffer, uint8_t le
   */
 void MCP2515_Reset(void)
 {
-    MCP2515_CS_Low();                           // 拉低片选
-    MCP2515_SPI_ReadWrite(MCP2515_CMD_RESET);   // 发送复位指令
-    MCP2515_CS_High();                          // 拉高片选
+    printf("Starting MCP2515 reset...\r\n");
     
-    osDelay(10);                                // 等待复位完成
+    MCP2515_CS_Low();
+    printf("CS pulled low\r\n");
+    
+    uint8_t result = MCP2515_SPI_ReadWrite(MCP2515_CMD_RESET);
+    printf("Reset command sent, SPI result: 0x%02X\r\n", result);
+    
+    MCP2515_CS_High();
+    printf("CS pulled high\r\n");
+    
+    osDelay(20);  // 增加延时确保复位完成
+    printf("Reset delay completed\r\n");
+    
+    // 验证复位状态
+    uint8_t canstat = MCP2515_ReadRegister(MCP2515_CANSTAT);
+    printf("CANSTAT after reset: 0x%02X (Expected: 0x80)\r\n", canstat);
+    
+    if (canstat == 0x80) {
+        printf("✓ MCP2515 reset successful\r\n");
+    } else if (canstat == 0xFF) {
+        printf("✗ No SPI response - Check MISO connection\r\n");
+    } else {
+        printf("✗ Unexpected reset state: 0x%02X\r\n", canstat);
+    }
 }
 
 /**
@@ -654,6 +689,84 @@ uint8_t MCP2515_SelfTest(void)
 }
 
 /**
+  * @brief  MCP2515硬件连接测试函数
+  * @param  None
+  * @retval MCP2515_OK: 成功, MCP2515_ERROR: 失败
+  */
+uint8_t MCP2515_HardwareTest(void)
+{
+    printf("\r\n=== MCP2515 Hardware Connection Test ===\r\n");
+    
+    // 1. CS引脚控制测试
+    printf("Step 1: Testing CS pin control...\r\n");
+    for (int i = 0; i < 3; i++) {
+        MCP2515_CS_High();
+        osDelay(1);
+        MCP2515_CS_Low();
+        osDelay(1);
+    }
+    MCP2515_CS_High();
+    printf("✓ CS pin control test completed\r\n");
+    
+    // 2. SPI基础通信测试
+    printf("Step 2: Testing basic SPI communication...\r\n");
+    MCP2515_CS_Low();
+    uint8_t dummy1 = MCP2515_SPI_ReadWrite(0x00);
+    uint8_t dummy2 = MCP2515_SPI_ReadWrite(0xFF);
+    MCP2515_CS_High();
+    printf("SPI test results: 0x00->0x%02X, 0xFF->0x%02X\r\n", dummy1, dummy2);
+    
+    if (dummy1 == 0xFF && dummy2 == 0xFF) {
+        printf("⚠ Warning: All SPI reads return 0xFF\r\n");
+        printf("  This suggests MISO line issue or MCP2515 not responding\r\n");
+    }
+    
+    // 3. 复位测试
+    printf("Step 3: Testing MCP2515 reset...\r\n");
+    MCP2515_Reset();
+    
+    // 4. 寄存器读写测试
+    printf("Step 4: Testing register read/write...\r\n");
+    
+    // 测试CNF1寄存器（可读写）
+    uint8_t original = MCP2515_ReadRegister(MCP2515_CNF1);
+    printf("CNF1 original value: 0x%02X\r\n", original);
+    
+    // 写入测试值
+    uint8_t test_value = 0xAA;
+    MCP2515_WriteRegister(MCP2515_CNF1, test_value);
+    uint8_t read_back = MCP2515_ReadRegister(MCP2515_CNF1);
+    printf("CNF1 write 0x%02X, read back 0x%02X\r\n", test_value, read_back);
+    
+    if (read_back == test_value) {
+        printf("✓ Register write test 1 passed\r\n");
+    } else {
+        printf("✗ Register write test 1 failed\r\n");
+        return MCP2515_ERROR;
+    }
+    
+    // 测试另一个值
+    test_value = 0x55;
+    MCP2515_WriteRegister(MCP2515_CNF1, test_value);
+    read_back = MCP2515_ReadRegister(MCP2515_CNF1);
+    printf("CNF1 write 0x%02X, read back 0x%02X\r\n", test_value, read_back);
+    
+    if (read_back == test_value) {
+        printf("✓ Register write test 2 passed\r\n");
+    } else {
+        printf("✗ Register write test 2 failed\r\n");
+        return MCP2515_ERROR;
+    }
+    
+    // 恢复原始值
+    MCP2515_WriteRegister(MCP2515_CNF1, original);
+    printf("CNF1 restored to original value: 0x%02X\r\n", original);
+    
+    printf("✓ All hardware tests passed!\r\n");
+    return MCP2515_OK;
+}
+
+/**
   * @brief  打印MCP2515状态信息
   * @param  None
   * @retval None
@@ -825,4 +938,239 @@ static void MCP2515_ReadRxBuffer(uint8_t buffer, MCP2515_CANMessage_t *message)
     for (; i < 8; i++) {
         message->data[i] = 0;
     }
+}
+
+void Simple_CS_Test(void)
+{
+    printf("Testing CS pin control...\r\n");
+    
+    for(int i = 0; i < 5; i++) {
+        HAL_GPIO_WritePin(MCP2515_CS_GPIO_Port, MCP2515_CS_Pin, GPIO_PIN_RESET);
+        printf("CS Low\r\n");
+        HAL_Delay(100);
+        
+        HAL_GPIO_WritePin(MCP2515_CS_GPIO_Port, MCP2515_CS_Pin, GPIO_PIN_SET);
+        printf("CS High\r\n");
+        HAL_Delay(100);
+    }
+    printf("CS test completed\r\n");
+}
+
+/* 错误诊断和修复功能 --------------------------------------------------------*/
+
+// 错误计数器寄存器定义
+#define MCP2515_TEC     0x1C    // 发送错误计数器
+#define MCP2515_REC     0x1D    // 接收错误计数器
+
+/**
+  * @brief  读取MCP2515错误计数器
+  * @param  tec: 发送错误计数器指针
+  * @param  rec: 接收错误计数器指针
+  * @retval None
+  */
+void MCP2515_GetErrorCounters(uint8_t *tec, uint8_t *rec)
+{
+    *tec = MCP2515_ReadRegister(MCP2515_TEC);
+    *rec = MCP2515_ReadRegister(MCP2515_REC);
+}
+
+/**
+  * @brief  详细的错误状态诊断
+  * @param  None
+  * @retval None
+  */
+void MCP2515_DiagnoseErrors(void)
+{
+    uint8_t canintf, eflg, tec, rec;
+    
+    printf("\r\n=== MCP2515 Error Diagnosis ===\r\n");
+    
+    // Read status registers
+    canintf = MCP2515_ReadRegister(MCP2515_CANINTF);
+    eflg = MCP2515_ReadRegister(MCP2515_EFLG);
+    MCP2515_GetErrorCounters(&tec, &rec);
+    
+    printf("CANINTF: 0x%02X\r\n", canintf);
+    printf("EFLG: 0x%02X\r\n", eflg);
+    printf("Transmit Error Counter (TEC): %d\r\n", tec);
+    printf("Receive Error Counter (REC): %d\r\n", rec);
+    
+    // Analyze CANINTF
+    printf("\r\n--- CANINTF Analysis ---\r\n");
+    if (canintf & 0x80) printf("WARNING: MERRF - Message Error Interrupt\r\n");
+    if (canintf & 0x40) printf("INFO: WAKIF - Wake-up Interrupt\r\n");
+    if (canintf & 0x20) printf("WARNING: ERRIF - Error Interrupt\r\n");
+    if (canintf & 0x10) printf("OK: TX2IF - Transmit Buffer 2 Interrupt\r\n");
+    if (canintf & 0x08) printf("OK: TX1IF - Transmit Buffer 1 Interrupt\r\n");
+    if (canintf & 0x04) printf("OK: TX0IF - Transmit Buffer 0 Interrupt\r\n");
+    if (canintf & 0x02) printf("INFO: RX1IF - Receive Buffer 1 Interrupt\r\n");
+    if (canintf & 0x01) printf("INFO: RX0IF - Receive Buffer 0 Interrupt\r\n");
+    
+    // Analyze EFLG
+    printf("\r\n--- EFLG Analysis ---\r\n");
+    if (eflg & 0x80) printf("ERROR: RX1OVR - Receive Buffer 1 Overflow\r\n");
+    if (eflg & 0x40) printf("ERROR: RX0OVR - Receive Buffer 0 Overflow\r\n");
+    if (eflg & 0x20) printf("ERROR: TXBO - Bus-Off State\r\n");
+    if (eflg & 0x10) printf("WARNING: TXEP - Transmit Error Passive\r\n");
+    if (eflg & 0x08) printf("WARNING: RXEP - Receive Error Passive\r\n");
+    if (eflg & 0x04) printf("WARNING: TXWAR - Transmit Error Warning\r\n");
+    if (eflg & 0x02) printf("WARNING: RXWAR - Receive Error Warning\r\n");
+    if (eflg & 0x01) printf("WARNING: EWARN - Error Warning\r\n");
+    
+    // Error level assessment
+    printf("\r\n--- Error Level Assessment ---\r\n");
+    if (eflg & 0x20) {
+        printf("CRITICAL: Bus-Off state, requires re-initialization\r\n");
+    } else if (eflg & 0x10) {
+        printf("WARNING: Transmit Error Passive, TEC >= 128\r\n");
+        printf("   Suggestion: Check bus connection and termination resistors\r\n");
+    } else if (eflg & 0x04) {
+        printf("INFO: Transmit Error Warning, TEC >= 96\r\n");
+    }
+    
+    printf("===============================\r\n");
+}
+
+/**
+  * @brief  清除所有错误标志和中断标志
+  * @param  None
+  * @retval None
+  */
+void MCP2515_ClearAllErrors(void)
+{
+    printf("Clearing error flags...\r\n");
+    
+    // Clear interrupt flags
+    MCP2515_WriteRegister(MCP2515_CANINTF, 0x00);
+    
+    printf("Error flags cleared\r\n");
+}
+
+/**
+  * @brief  回环模式测试
+  * @param  None
+  * @retval 测试结果 (MCP2515_OK: 成功, MCP2515_ERROR: 失败)
+  */
+uint8_t MCP2515_LoopbackTest(void)
+{
+    MCP2515_CANMessage_t test_msg;
+    MCP2515_CANMessage_t recv_msg;
+    uint8_t result = MCP2515_ERROR;
+    
+    printf("\r\n=== Loopback Mode Test ===\r\n");
+    
+    // Switch to loopback mode
+    printf("Switching to loopback mode...\r\n");
+    if (MCP2515_SetMode(MCP2515_MODE_LOOPBACK) != MCP2515_OK) {
+        printf("ERROR: Failed to switch to loopback mode\r\n");
+        return MCP2515_ERROR;
+    }
+    
+    HAL_Delay(100);  // Wait for mode switch completion
+    
+    // Prepare test message
+    test_msg.id = 0x123;
+    test_msg.dlc = 8;
+    test_msg.rtr = 0;
+    test_msg.ide = 0;
+    for (int i = 0; i < 8; i++) {
+        test_msg.data[i] = 0xA0 + i;
+    }
+    
+    printf("Sending test message ID:0x%03lX...\r\n", test_msg.id);
+    
+    // Send message
+    if (MCP2515_SendMessage(&test_msg) == MCP2515_OK) {
+        printf("OK: Message sent successfully\r\n");
+        
+        // Wait for a while
+        HAL_Delay(50);
+        
+        // Check if message received
+        if (MCP2515_CheckReceive() == MCP2515_OK) {
+            if (MCP2515_ReceiveMessage(&recv_msg) == MCP2515_OK) {
+                printf("OK: Received loopback message ID:0x%03lX\r\n", recv_msg.id);
+                
+                // Verify data
+                if (recv_msg.id == test_msg.id && recv_msg.dlc == test_msg.dlc) {
+                    uint8_t data_match = 1;
+                    for (int i = 0; i < test_msg.dlc; i++) {
+                        if (recv_msg.data[i] != test_msg.data[i]) {
+                            data_match = 0;
+                            break;
+                        }
+                    }
+                    
+                    if (data_match) {
+                        printf("SUCCESS: Loopback test passed! MCP2515 hardware is working\r\n");
+                        result = MCP2515_OK;
+                    } else {
+                        printf("ERROR: Data mismatch\r\n");
+                    }
+                } else {
+                    printf("ERROR: ID or DLC mismatch\r\n");
+                }
+            } else {
+                printf("ERROR: Failed to receive message\r\n");
+            }
+        } else {
+            printf("ERROR: No loopback message received\r\n");
+        }
+    } else {
+        printf("ERROR: Message send failed\r\n");
+    }
+    
+    // Switch back to normal mode
+    printf("Switching back to normal mode...\r\n");
+    MCP2515_SetMode(MCP2515_MODE_NORMAL);
+    HAL_Delay(100);
+    
+    printf("==========================\r\n");
+    return result;
+}
+
+/**
+  * @brief  完整的CAN问题诊断和修复流程
+  * @param  None
+  * @retval None
+  */
+void CAN_DiagnoseAndFix(void)
+{
+    printf("\r\nStarting CAN problem diagnosis and repair process...\r\n");
+    
+    // Step 1: Diagnose current error status
+    MCP2515_DiagnoseErrors();
+    
+    // Step 2: Clear error flags
+    MCP2515_ClearAllErrors();
+    
+    // Step 3: Loopback mode test
+    if (MCP2515_LoopbackTest() == MCP2515_OK) {
+        printf("\r\nSUCCESS: MCP2515 hardware is functioning normally\r\n");
+        printf("Possible issues:\r\n");
+        printf("   1. No other CAN nodes on the bus to acknowledge\r\n");
+        printf("   2. Termination resistors not properly installed\r\n");
+        printf("   3. CAN transceiver connection problems\r\n");
+        
+        printf("\r\nSuggested solutions:\r\n");
+        printf("   1. Add 120 ohm resistor between CAN_H and CAN_L\r\n");
+        printf("   2. Connect a second CAN node or CAN analyzer\r\n");
+        printf("   3. Check TJA1050 transceiver connections\r\n");
+    } else {
+        printf("\r\nERROR: MCP2515 hardware may have problems\r\n");
+        printf("Suggested checks:\r\n");
+        printf("   1. Verify SPI connections are correct\r\n");
+        printf("   2. Check MCP2515 power supply\r\n");
+        printf("   3. Verify crystal oscillator is working\r\n");
+    }
+    
+    // Step 4: Re-initialize
+    printf("\r\nRe-initializing MCP2515...\r\n");
+    if (MCP2515_Init(MCP2515_BAUD_500K) == MCP2515_OK) {
+        printf("OK: MCP2515 re-initialization successful\r\n");
+    } else {
+        printf("ERROR: MCP2515 re-initialization failed\r\n");
+    }
+    
+    printf("\r\nDiagnosis and repair process completed\r\n");
 }

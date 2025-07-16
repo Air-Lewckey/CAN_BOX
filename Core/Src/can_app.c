@@ -59,11 +59,11 @@ uint8_t CAN_App_Init(void)
 {
     // 初始化MCP2515 (500Kbps波特率)
     if (MCP2515_Init(MCP2515_BAUD_500K) != MCP2515_OK) {
-        printf("MCP2515初始化失败!\r\n");
+        printf("MCP2515 initialization failed!\r\n");
         return CAN_APP_ERROR;
     }
     
-    printf("MCP2515初始化成功!\r\n");
+    printf("MCP2515 initialization successful!\r\n");
     
     // 配置接收过滤器 (接收所有消息)
     MCP2515_SetMask(0, 0x00000000, 0);  // 掩码0: 接收所有标准帧
@@ -74,7 +74,7 @@ uint8_t CAN_App_Init(void)
     
     can_app_initialized = 1;
     
-    printf("CAN应用初始化完成!\r\n");
+    printf("CAN application initialization completed!\r\n");
     return CAN_APP_OK;
 }
 
@@ -107,7 +107,7 @@ void CAN_SendTask_Main(void *argument)
     uint32_t last_data_send = 0;
     uint32_t current_time;
     
-    printf("CAN发送任务启动\r\n");
+    printf("CAN send task started\r\n");
     
     // 等待CAN应用初始化完成
     while (!can_app_initialized) {
@@ -135,10 +135,10 @@ void CAN_SendTask_Main(void *argument)
             // 处理队列中的发送请求
             if (MCP2515_SendMessage(&queue_msg.message) == MCP2515_OK) {
                 can_tx_counter++;
-                printf("队列消息发送成功, ID: 0x%03X\r\n", (unsigned int)queue_msg.message.id);
+                printf("Queue message sent successfully, ID: 0x%03X\r\n", (unsigned int)queue_msg.message.id);
             } else {
                 can_error_counter++;
-                printf("队列消息发送失败, ID: 0x%03X\r\n", (unsigned int)queue_msg.message.id);
+                printf("Queue message send failed, ID: 0x%03X\r\n", (unsigned int)queue_msg.message.id);
             }
         }
         
@@ -174,10 +174,10 @@ static void CAN_SendHeartbeat(void)
     // 发送心跳消息
     if (MCP2515_SendMessage(&heartbeat) == MCP2515_OK) {
         can_tx_counter++;
-        printf("心跳消息发送成功 [%lu]\r\n", can_tx_counter);
+        printf("Heartbeat message sent successfully [%lu]\r\n", can_tx_counter);
     } else {
         can_error_counter++;
-        printf("心跳消息发送失败\r\n");
+        printf("Heartbeat message send failed\r\n");
     }
 }
 
@@ -209,10 +209,10 @@ static void CAN_SendTestData(void)
     if (MCP2515_SendMessage(&test_data) == MCP2515_OK) {
         can_tx_counter++;
         data_counter++;
-        printf("测试数据发送成功, 计数: %d\r\n", data_counter);
+        printf("Test data sent successfully, count: %d\r\n", data_counter);
     } else {
         can_error_counter++;
-        printf("测试数据发送失败\r\n");
+        printf("Test data send failed\r\n");
     }
 }
 
@@ -228,7 +228,7 @@ void CAN_ReceiveTask_Main(void *argument)
 {
     MCP2515_CANMessage_t received_message;
     
-    printf("CAN接收任务启动\r\n");
+    printf("CAN receive task started\r\n");
     
     // 等待CAN应用初始化完成
     while (!can_app_initialized) {
@@ -243,13 +243,13 @@ void CAN_ReceiveTask_Main(void *argument)
                 can_rx_counter++;
                 
                 // 打印接收到的消息
-                CAN_PrintMessage("接收", &received_message);
+                CAN_PrintMessage("Received", &received_message);
                 
                 // 处理接收到的消息
                 CAN_ProcessReceivedMessage(&received_message);
             } else {
                 can_error_counter++;
-                printf("消息接收失败\r\n");
+                printf("Message receive failed\r\n");
             }
         }
         
@@ -268,7 +268,7 @@ static void CAN_ProcessReceivedMessage(MCP2515_CANMessage_t *message)
         case CAN_HEARTBEAT_ID:
             // 处理心跳消息
             if (message->dlc >= 2 && message->data[0] == 0xAA && message->data[1] == 0x55) {
-                printf("收到心跳消息\r\n");
+                printf("Heartbeat message received\r\n");
             }
             break;
             
@@ -276,18 +276,18 @@ static void CAN_ProcessReceivedMessage(MCP2515_CANMessage_t *message)
             // 处理数据消息
             if (message->dlc >= 2 && message->data[0] == 0x12 && message->data[1] == 0x34) {
                 uint16_t counter = (message->data[2] << 8) | message->data[3];
-                printf("收到测试数据, 计数: %d\r\n", counter);
+                printf("Test data received, count: %d\r\n", counter);
             }
             break;
             
         case CAN_STATUS_ID:
             // 处理状态消息
-            printf("收到状态消息\r\n");
+            printf("Status message received\r\n");
             break;
             
         default:
             // 处理其他消息
-            printf("收到未知消息, ID: 0x%03X\r\n", (unsigned int)message->id);
+            printf("Unknown message received, ID: 0x%03X\r\n", (unsigned int)message->id);
             break;
     }
 }
@@ -373,12 +373,12 @@ uint8_t CAN_App_SendRemoteFrame(uint32_t id, uint8_t dlc, uint8_t extended)
     // 直接发送远程帧
     if (MCP2515_SendMessage(&remote_frame) == MCP2515_OK) {
         can_tx_counter++;
-        printf("远程帧发送成功, ID: 0x%03X\r\n", (unsigned int)id);
+        printf("Remote frame sent successfully, ID: 0x%03X\r\n", (unsigned int)id);
         return CAN_APP_OK;
     }
     
     can_error_counter++;
-    printf("远程帧发送失败, ID: 0x%03X\r\n", (unsigned int)id);
+    printf("Remote frame send failed, ID: 0x%03X\r\n", (unsigned int)id);
     return CAN_APP_ERROR;
 }
 
@@ -404,7 +404,7 @@ uint8_t CAN_App_SetFilter(uint32_t filter_id, uint32_t mask, uint8_t extended)
         return CAN_APP_ERROR;
     }
     
-    printf("过滤器设置成功, ID: 0x%03X, 掩码: 0x%03X\r\n", 
+    printf("Filter set successfully, ID: 0x%03X, Mask: 0x%03X\r\n", 
            (unsigned int)filter_id, (unsigned int)mask);
     
     return CAN_APP_OK;
@@ -419,23 +419,23 @@ uint8_t CAN_App_SetFilter(uint32_t filter_id, uint32_t mask, uint8_t extended)
   */
 uint8_t CAN_App_SelfTest(void)
 {
-    printf("开始CAN应用自检测试...\r\n");
+    printf("Starting CAN application self-test...\r\n");
     
     // 检查MCP2515硬件
     if (MCP2515_SelfTest() != MCP2515_OK) {
-        printf("MCP2515硬件测试失败!\r\n");
+        printf("MCP2515 hardware test failed!\r\n");
         return CAN_APP_ERROR;
     }
     
-    printf("MCP2515硬件测试通过\r\n");
+    printf("MCP2515 hardware test passed\r\n");
     
     // 检查回环模式
     if (MCP2515_SetMode(MCP2515_MODE_LOOPBACK) != MCP2515_OK) {
-        printf("设置回环模式失败!\r\n");
+        printf("Set loopback mode failed!\r\n");
         return CAN_APP_ERROR;
     }
     
-    printf("回环模式设置成功\r\n");
+    printf("Loopback mode set successfully\r\n");
     
     // 发送测试消息
     MCP2515_CANMessage_t test_msg;
@@ -448,11 +448,11 @@ uint8_t CAN_App_SelfTest(void)
     }
     
     if (MCP2515_SendMessage(&test_msg) != MCP2515_OK) {
-        printf("回环测试消息发送失败!\r\n");
+        printf("Loopback test message send failed!\r\n");
         return CAN_APP_ERROR;
     }
     
-    printf("回环测试消息发送成功\r\n");
+    printf("Loopback test message sent successfully\r\n");
     
     // 等待并接收消息
     osDelay(100);
@@ -463,23 +463,23 @@ uint8_t CAN_App_SelfTest(void)
         if (received_msg.id == test_msg.id && 
             received_msg.dlc == test_msg.dlc &&
             memcmp(received_msg.data, test_msg.data, test_msg.dlc) == 0) {
-            printf("回环测试成功!\r\n");
+            printf("Loopback test successful!\r\n");
         } else {
-            printf("回环测试数据不匹配!\r\n");
+            printf("Loopback test data mismatch!\r\n");
             return CAN_APP_ERROR;
         }
     } else {
-        printf("回环测试消息接收失败!\r\n");
+        printf("Loopback test message receive failed!\r\n");
         return CAN_APP_ERROR;
     }
     
     // 恢复正常模式
     if (MCP2515_SetMode(MCP2515_MODE_NORMAL) != MCP2515_OK) {
-        printf("恢复正常模式失败!\r\n");
+        printf("Restore normal mode failed!\r\n");
         return CAN_APP_ERROR;
     }
     
-    printf("CAN应用自检测试完成!\r\n");
+    printf("CAN application self-test completed!\r\n");
     return CAN_APP_OK;
 }
 
@@ -491,11 +491,11 @@ uint8_t CAN_App_SelfTest(void)
   */
 static void CAN_PrintMessage(const char *prefix, MCP2515_CANMessage_t *message)
 {
-    printf("%s消息: ID=0x%03X, %s, %s, DLC=%d, 数据=", 
+    printf("%s Message: ID=0x%03X, %s, %s, DLC=%d, Data=", 
            prefix,
            (unsigned int)message->id,
-           message->ide ? "扩展帧" : "标准帧",
-           message->rtr ? "远程帧" : "数据帧",
+           message->ide ? "Extended" : "Standard",
+           message->rtr ? "Remote" : "Data",
            message->dlc);
     
     if (!message->rtr) {
@@ -517,13 +517,13 @@ void CAN_App_PrintStatus(void)
     CAN_App_Stats_t stats;
     CAN_App_GetStats(&stats);
     
-    printf("\r\n=== CAN应用状态 ===\r\n");
-    printf("初始化状态: %s\r\n", stats.initialized ? "已初始化" : "未初始化");
-    printf("发送计数: %lu\r\n", stats.tx_count);
-    printf("接收计数: %lu\r\n", stats.rx_count);
-    printf("错误计数: %lu\r\n", stats.error_count);
-    printf("发送缓冲区空闲: %d\r\n", MCP2515_CheckTransmit());
-    printf("接收状态: %s\r\n", MCP2515_CheckReceive() ? "有消息" : "无消息");
+    printf("\r\n=== CAN Application Status ===\r\n");
+    printf("Initialization Status: %s\r\n", stats.initialized ? "Initialized" : "Not Initialized");
+    printf("TX Count: %lu\r\n", stats.tx_count);
+    printf("RX Count: %lu\r\n", stats.rx_count);
+    printf("Error Count: %lu\r\n", stats.error_count);
+    printf("TX Buffer Free: %d\r\n", MCP2515_CheckTransmit());
+    printf("RX Status: %s\r\n", MCP2515_CheckReceive() ? "Message Available" : "No Message");
     
     // 打印MCP2515状态
     MCP2515_PrintStatus();

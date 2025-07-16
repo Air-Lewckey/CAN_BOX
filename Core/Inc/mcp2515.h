@@ -192,8 +192,16 @@ void MCP2515_ClearErrorFlags(void);
 
 /* 调试和测试函数 */
 uint8_t MCP2515_SelfTest(void);
+uint8_t MCP2515_HardwareTest(void);
 void MCP2515_PrintStatus(void);
+void Simple_CS_Test(void);
 
+/* 错误诊断和修复函数 */
+void MCP2515_GetErrorCounters(uint8_t *tec, uint8_t *rec);
+void MCP2515_DiagnoseErrors(void);
+void MCP2515_ClearAllErrors(void);
+uint8_t MCP2515_LoopbackTest(void);
+void CAN_DiagnoseAndFix(void);
 #ifdef __cplusplus
 }
 #endif

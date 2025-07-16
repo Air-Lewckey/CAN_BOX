@@ -127,28 +127,34 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   // 初始化CAN应用
-  printf("\r\n=== STM32F407 + MCP2515 CAN通信系统启动 ===\r\n");
-  printf("系统时钟: %lu MHz\r\n", HAL_RCC_GetHCLKFreq() / 1000000);
-  printf("SPI1时钟: %lu MHz\r\n", HAL_RCC_GetPCLK2Freq() / 1000000 / 32);  // SPI1预分频32
+  printf("\r\n=== STM32F407 + MCP2515 CAN Communication System Startup ===\r\n");
+  printf("System Clock: %lu MHz\r\n", HAL_RCC_GetHCLKFreq() / 1000000);
+  printf("SPI1 Clock: %lu MHz\r\n", HAL_RCC_GetPCLK2Freq() / 1000000 / 32);  // SPI1预分频32
   
   // 延时等待硬件稳定
   HAL_Delay(100);
   
   // 初始化CAN应用
   if (CAN_App_Init() == CAN_APP_OK) {
-    printf("CAN应用初始化成功!\r\n");
+    printf("CAN application initialization successful!\r\n");
     
     // 执行自检测试
     if (CAN_App_SelfTest() == CAN_APP_OK) {
-      printf("CAN自检测试通过!\r\n");
+      printf("CAN self-test passed!\r\n");
     } else {
-      printf("CAN自检测试失败!\r\n");
+      printf("CAN self-test failed!\r\n");
+      // If self-test fails, run diagnosis
+      printf("\r\nWARNING: CAN communication problem detected, starting diagnosis...\r\n");
+      CAN_DiagnoseAndFix();
     }
   } else {
-    printf("CAN应用初始化失败!\r\n");
+    printf("CAN application initialization failed!\r\n");
+    // If initialization fails, run diagnosis
+    printf("\r\nWARNING: CAN initialization failed, starting diagnosis...\r\n");
+    CAN_DiagnoseAndFix();
   }
   
-  printf("系统初始化完成，开始运行...\r\n\r\n");
+  printf("System initialization completed, starting operation...\r\n\r\n");
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -276,7 +282,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -392,24 +398,37 @@ void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN 5 */
   uint32_t last_status_print = 0;
+  uint32_t last_heartbeat_print = 0;
+  uint32_t heartbeat_counter = 0;
   
-  printf("默认任务启动\r\n");
+  printf("Default Task Started\r\n");  // 使用英文避免乱码
+  printf("System Heartbeat Monitor Active\r\n");
   
   /* Infinite loop */
   for(;;)
   {
     uint32_t current_time = HAL_GetTick();
     
-    // 每10秒打印一次系统状态
+    // 每2秒发送一次心跳数据包（增加频率）
+    if ((current_time - last_heartbeat_print) >= 2000) {
+      heartbeat_counter++;
+      printf("[%lu] Heartbeat #%lu - System Running OK - Time: %lu ms\r\n", 
+             heartbeat_counter, heartbeat_counter, current_time);
+      last_heartbeat_print = current_time;
+    }
+    
+    // 每10秒打印一次详细系统状态
     if ((current_time - last_status_print) >= 10000) {
+      printf("\r\n=== System Status Report #%lu ===\r\n", heartbeat_counter);
       CAN_App_PrintStatus();
+      printf("=== End of Status Report ===\r\n\r\n");
       last_status_print = current_time;
     }
     
     // 检查系统运行状态
     // 这里可以添加系统监控代码
     
-    osDelay(1000);  // 1秒周期
+    osDelay(500);  // 减少到500ms周期，提高响应性
   }
   /* USER CODE END 5 */
 }
