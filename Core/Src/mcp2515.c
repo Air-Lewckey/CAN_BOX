@@ -1124,16 +1124,30 @@ uint8_t MCP2515_LoopbackTest(void)
     }
     
     printf("Sending test message ID:0x%03lX...\r\n", test_msg.id);
+    printf("Test data: ");
+    for (int i = 0; i < test_msg.dlc; i++) {
+        printf("0x%02X ", test_msg.data[i]);
+    }
+    printf("\r\n");
     
     // Send message
-    if (MCP2515_SendMessage(&test_msg) == MCP2515_OK) {
+    printf("Calling MCP2515_SendMessage...\r\n");
+    uint8_t send_result = MCP2515_SendMessage(&test_msg);
+    printf("Send result: %d\r\n", send_result);
+    
+    if (send_result == MCP2515_OK) {
         printf("OK: Message sent successfully\r\n");
         
         // Wait for a while
+        printf("Waiting 50ms for loopback...\r\n");
         HAL_Delay(50);
         
         // Check if message received
-        if (MCP2515_CheckReceive() == MCP2515_OK) {
+        printf("Checking for received message...\r\n");
+        uint8_t check_result = MCP2515_CheckReceive();
+        printf("Check receive result: %d\r\n", check_result);
+        
+        if (check_result == MCP2515_OK) {
             if (MCP2515_ReceiveMessage(&recv_msg) == MCP2515_OK) {
                 printf("OK: Received loopback message ID:0x%03lX\r\n", recv_msg.id);
                 
@@ -1161,9 +1175,22 @@ uint8_t MCP2515_LoopbackTest(void)
             }
         } else {
             printf("ERROR: No loopback message received\r\n");
+            printf("Possible causes:\r\n");
+            printf("  - MCP2515 not in loopback mode\r\n");
+            printf("  - Receive buffer configuration issue\r\n");
+            printf("  - Message filtering problem\r\n");
         }
     } else {
-        printf("ERROR: Message send failed\r\n");
+        printf("ERROR: Message send failed (result: %d)\r\n", send_result);
+        if (send_result == MCP2515_TIMEOUT) {
+            printf("  - Send timeout occurred\r\n");
+        } else if (send_result == MCP2515_ERROR) {
+            printf("  - General send error\r\n");
+        }
+        printf("Possible causes:\r\n");
+        printf("  - No available transmit buffer\r\n");
+        printf("  - MCP2515 not in correct mode\r\n");
+        printf("  - SPI communication problem\r\n");
     }
     
     // Switch back to normal mode
