@@ -1257,7 +1257,7 @@ uint8_t MCP2515_LoopbackTest(void)
         uint8_t check_result = MCP2515_CheckReceive();
         printf("Check receive result: %d\r\n", check_result);
         
-        if (check_result == MCP2515_OK) {
+        if (check_result == 1) {  // MCP2515_CheckReceive returns 1 if message available
             if (MCP2515_ReceiveMessage(&recv_msg) == MCP2515_OK) {
                 printf("OK: Received loopback message ID:0x%03lX\r\n", recv_msg.id);
                 
