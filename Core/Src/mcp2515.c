@@ -1130,6 +1130,140 @@ uint8_t MCP2515_LoopbackTest(void)
 }
 
 /**
+  * @brief  CANOE测试函数 - 发送CAN报文并通过串口输出发送内容
+  * @param  None
+  * @retval None
+  * @note   此函数专门用于配合CANOE工具进行CAN总线测试
+  *         发送报文后立即通过串口输出发送的数据，便于对比验证
+  */
+void MCP2515_CANOETest(void)
+{
+    MCP2515_CANMessage_t test_msg;
+    uint8_t result;
+    static uint32_t test_counter = 0;
+    
+    printf("\r\n=== CANOE Test Mode - CAN Message Transmission ===\r\n");
+    
+    // 确保处于正常模式
+    if (MCP2515_SetMode(MCP2515_MODE_NORMAL) != MCP2515_OK) {
+        printf("ERROR: Failed to switch to normal mode\r\n");
+        return;
+    }
+    
+    // 准备测试报文1 - 标准帧
+    test_msg.id = 0x123;
+    test_msg.dlc = 8;
+    test_msg.rtr = 0;
+    test_msg.ide = 0;  // 标准帧
+    test_msg.data[0] = 0x11;
+    test_msg.data[1] = 0x22;
+    test_msg.data[2] = 0x33;
+    test_msg.data[3] = 0x44;
+    test_msg.data[4] = (uint8_t)(test_counter & 0xFF);
+    test_msg.data[5] = (uint8_t)((test_counter >> 8) & 0xFF);
+    test_msg.data[6] = 0xAA;
+    test_msg.data[7] = 0xBB;
+    
+    printf("\r\n--- Test Message 1 (Standard Frame) ---\r\n");
+    printf("Sending CAN message to bus...\r\n");
+    printf("CAN ID: 0x%03lX (Standard Frame)\r\n", test_msg.id);
+    printf("DLC: %d bytes\r\n", test_msg.dlc);
+    printf("Data: ");
+    for (int i = 0; i < test_msg.dlc; i++) {
+        printf("0x%02X ", test_msg.data[i]);
+    }
+    printf("\r\n");
+    
+    // 发送报文
+    result = MCP2515_SendMessage(&test_msg);
+    if (result == MCP2515_OK) {
+        printf("✓ Message sent successfully to CAN bus\r\n");
+        printf(">> Check CANOE for received message with ID 0x123\r\n");
+    } else if (result == MCP2515_TIMEOUT) {
+        printf("⚠ Message send timeout - No ACK received\r\n");
+        printf(">> This is normal if no other CAN nodes are connected\r\n");
+        printf(">> Check CANOE for transmitted message attempt\r\n");
+    } else {
+        printf("✗ Message send failed\r\n");
+    }
+    
+    HAL_Delay(500);  // 延时500ms
+    
+    // 准备测试报文2 - 扩展帧
+    test_msg.id = 0x12345678;
+    test_msg.dlc = 6;
+    test_msg.rtr = 0;
+    test_msg.ide = 1;  // 扩展帧
+    test_msg.data[0] = 0xCA;
+    test_msg.data[1] = 0xFE;
+    test_msg.data[2] = 0xBA;
+    test_msg.data[3] = 0xBE;
+    test_msg.data[4] = (uint8_t)(HAL_GetTick() & 0xFF);
+    test_msg.data[5] = (uint8_t)((HAL_GetTick() >> 8) & 0xFF);
+    
+    printf("\r\n--- Test Message 2 (Extended Frame) ---\r\n");
+    printf("Sending CAN message to bus...\r\n");
+    printf("CAN ID: 0x%08lX (Extended Frame)\r\n", test_msg.id);
+    printf("DLC: %d bytes\r\n", test_msg.dlc);
+    printf("Data: ");
+    for (int i = 0; i < test_msg.dlc; i++) {
+        printf("0x%02X ", test_msg.data[i]);
+    }
+    printf("\r\n");
+    
+    // 发送报文
+    result = MCP2515_SendMessage(&test_msg);
+    if (result == MCP2515_OK) {
+        printf("✓ Message sent successfully to CAN bus\r\n");
+        printf(">> Check CANOE for received message with ID 0x12345678\r\n");
+    } else if (result == MCP2515_TIMEOUT) {
+        printf("⚠ Message send timeout - No ACK received\r\n");
+        printf(">> This is normal if no other CAN nodes are connected\r\n");
+        printf(">> Check CANOE for transmitted message attempt\r\n");
+    } else {
+        printf("✗ Message send failed\r\n");
+    }
+    
+    HAL_Delay(500);  // 延时500ms
+    
+    // 准备测试报文3 - RTR帧
+    test_msg.id = 0x456;
+    test_msg.dlc = 4;
+    test_msg.rtr = 1;  // RTR帧
+    test_msg.ide = 0;  // 标准帧
+    
+    printf("\r\n--- Test Message 3 (RTR Frame) ---\r\n");
+    printf("Sending RTR message to bus...\r\n");
+    printf("CAN ID: 0x%03lX (Standard RTR Frame)\r\n", test_msg.id);
+    printf("DLC: %d bytes (RTR - no data)\r\n", test_msg.dlc);
+    
+    // 发送RTR报文
+    result = MCP2515_SendMessage(&test_msg);
+    if (result == MCP2515_OK) {
+        printf("✓ RTR message sent successfully to CAN bus\r\n");
+        printf(">> Check CANOE for received RTR message with ID 0x456\r\n");
+    } else if (result == MCP2515_TIMEOUT) {
+        printf("⚠ RTR message send timeout - No ACK received\r\n");
+        printf(">> This is normal if no other CAN nodes are connected\r\n");
+        printf(">> Check CANOE for transmitted RTR message attempt\r\n");
+    } else {
+        printf("✗ RTR message send failed\r\n");
+    }
+    
+    test_counter++;
+    
+    printf("\r\n=== CANOE Test Summary ===\r\n");
+    printf("Test sequence #%lu completed\r\n", test_counter);
+    printf("Messages sent to CAN bus:\r\n");
+    printf("  1. Standard Frame: ID=0x123, 8 bytes data\r\n");
+    printf("  2. Extended Frame: ID=0x12345678, 6 bytes data\r\n");
+    printf("  3. RTR Frame: ID=0x456, 4 bytes requested\r\n");
+    printf("\r\nPlease check CANOE trace window for these messages\r\n");
+    printf("If messages appear in CANOE, CAN transmission is working!\r\n");
+    printf("===============================\r\n");
+}
+
+/**
   * @brief  完整的CAN问题诊断和修复流程
   * @param  None
   * @retval None
@@ -1156,6 +1290,10 @@ void CAN_DiagnoseAndFix(void)
         printf("   1. Add 120 ohm resistor between CAN_H and CAN_L\r\n");
         printf("   2. Connect a second CAN node or CAN analyzer\r\n");
         printf("   3. Check TJA1050 transceiver connections\r\n");
+        
+        printf("\r\n--- Starting CANOE Test Mode ---\r\n");
+        printf("Since hardware is OK, testing CAN transmission for CANOE...\r\n");
+        MCP2515_CANOETest();
     } else {
         printf("\r\nERROR: MCP2515 hardware may have problems\r\n");
         printf("Suggested checks:\r\n");
