@@ -25,6 +25,7 @@
 #include "mcp2515.h"
 #include <stdio.h>
 #include <string.h>
+#include "cmsis_os.h"  // For osDelay function in FreeRTOS environment
 
 /* Private defines -----------------------------------------------------------*/
 #define MCP2515_SPI_TIMEOUT     1000    // SPI通信超时时间(ms)
@@ -1115,7 +1116,7 @@ uint8_t MCP2515_LoopbackTest(void)
     printf("[OK] Switched to loopback mode\r\n");
     printf("[INFO] Starting loopback test...\r\n");
     printf("Waiting 100ms for mode stabilization...\r\n");
-    HAL_Delay(100);  // Wait for mode switch completion
+    osDelay(100);  // Wait for mode switch completion - using osDelay for FreeRTOS compatibility
     printf("Wait completed, preparing test message...\r\n");
     
     // Prepare test message
@@ -1147,7 +1148,7 @@ uint8_t MCP2515_LoopbackTest(void)
         
         // Wait for a while
         printf("Waiting 50ms for loopback...\r\n");
-        HAL_Delay(50);
+        osDelay(50);
         
         // Check if message received
         printf("Checking for received message...\r\n");
@@ -1203,7 +1204,7 @@ uint8_t MCP2515_LoopbackTest(void)
     // Switch back to normal mode
     printf("Switching back to normal mode...\r\n");
     MCP2515_SetMode(MCP2515_MODE_NORMAL);
-    HAL_Delay(100);
+    osDelay(100);
     
     printf("==========================\r\n");
     return result;
@@ -1267,7 +1268,7 @@ void MCP2515_CANOETest(void)
         printf("[ERROR] Message send failed\r\n");
     }
     
-    HAL_Delay(500);  // 延时500ms
+    osDelay(500);  // 延时500ms
     
     // 准备测试报文2 - 扩展帧
     test_msg.id = 0x12345678;
@@ -1304,7 +1305,7 @@ void MCP2515_CANOETest(void)
         printf("[ERROR] Message send failed\r\n");
     }
     
-    HAL_Delay(500);  // 延时500ms
+    osDelay(500);  // 延时500ms
     
     // 准备测试报文3 - RTR帧
     test_msg.id = 0x456;
