@@ -29,7 +29,7 @@
 /* Private defines -----------------------------------------------------------*/
 #define MCP2515_SPI_TIMEOUT     1000    // SPI通信超时时间(ms)
 #define MCP2515_INIT_TIMEOUT    100     // 初始化超时时间(ms)
-#define MCP2515_MODE_TIMEOUT    50      // 模式切换超时时间(ms)
+#define MCP2515_MODE_TIMEOUT    1000    // 模式切换超时时间(ms)
 
 /* Private variables ---------------------------------------------------------*/
 static uint8_t mcp2515_initialized = 0;  // 初始化标志
@@ -251,11 +251,22 @@ void MCP2515_Reset(void)
   */
 uint8_t MCP2515_SetMode(uint8_t mode)
 {
+    printf("Setting mode to 0x%02X...", mode);
+    
     // 修改CANCTRL寄存器的模式位
     MCP2515_ModifyRegister(MCP2515_CANCTRL, 0xE0, mode);
     
     // 等待模式切换完成
-    return MCP2515_WaitForMode(mode, MCP2515_MODE_TIMEOUT);
+    uint8_t result = MCP2515_WaitForMode(mode, MCP2515_MODE_TIMEOUT);
+    
+    if (result == MCP2515_OK) {
+        printf(" SUCCESS\r\n");
+    } else {
+        printf(" TIMEOUT\r\n");
+        printf("Current mode: 0x%02X, Expected: 0x%02X\r\n", MCP2515_GetMode(), mode);
+    }
+    
+    return result;
 }
 
 /**
@@ -840,14 +851,27 @@ void MCP2515_PrintStatus(void)
 static uint8_t MCP2515_WaitForMode(uint8_t mode, uint32_t timeout)
 {
     uint32_t start_time = HAL_GetTick();
+    uint32_t check_count = 0;
     
     while ((HAL_GetTick() - start_time) < timeout) {
-        if (MCP2515_GetMode() == mode) {
+        uint8_t current_mode = MCP2515_GetMode();
+        check_count++;
+        
+        if (current_mode == mode) {
+            printf("Mode switch completed after %lu checks\r\n", check_count);
             return MCP2515_OK;
         }
+        
+        // 每100次检查输出一次状态
+        if (check_count % 100 == 0) {
+            printf("Waiting for mode 0x%02X, current: 0x%02X (check #%lu)\r\n", 
+                   mode, current_mode, check_count);
+        }
+        
         osDelay(1);
     }
     
+    printf("Mode switch timeout after %lu checks\r\n", check_count);
     return MCP2515_TIMEOUT;
 }
 
