@@ -35,7 +35,7 @@
 ../Core/Src/mcp2515.c:1017:6:MCP2515_GetErrorCounters	16	static
 ../Core/Src/mcp2515.c:1028:6:MCP2515_DiagnoseErrors	16	static
 ../Core/Src/mcp2515.c:1085:6:MCP2515_ClearAllErrors	8	static
-../Core/Src/mcp2515.c:1100:9:MCP2515_LoopbackTest	56	static
-../Core/Src/mcp2515.c:1185:6:MCP2515_CANOETest	40	static
-../Core/Src/mcp2515.c:1317:6:MCP2515_InitFailureDiagnosis	16	static
-../Core/Src/mcp2515.c:1403:6:CAN_DiagnoseAndFix	8	static
+../Core/Src/mcp2515.c:1100:9:MCP2515_LoopbackTest	64	static
+../Core/Src/mcp2515.c:1212:6:MCP2515_CANOETest	40	static
+../Core/Src/mcp2515.c:1344:6:MCP2515_InitFailureDiagnosis	16	static
+../Core/Src/mcp2515.c:1430:6:CAN_DiagnoseAndFix	8	static

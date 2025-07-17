@@ -1112,16 +1112,23 @@ uint8_t MCP2515_LoopbackTest(void)
         return MCP2515_ERROR;
     }
     
+    printf("✓ Switched to loopback mode\r\n");
+    printf("📋 Starting loopback test...\r\n");
+    printf("Waiting 100ms for mode stabilization...\r\n");
     HAL_Delay(100);  // Wait for mode switch completion
+    printf("Wait completed, preparing test message...\r\n");
     
     // Prepare test message
+    printf("Preparing test message structure...\r\n");
     test_msg.id = 0x123;
     test_msg.dlc = 8;
     test_msg.rtr = 0;
     test_msg.ide = 0;
+    printf("Filling test data...\r\n");
     for (int i = 0; i < 8; i++) {
         test_msg.data[i] = 0xA0 + i;
     }
+    printf("Test message prepared successfully\r\n");
     
     printf("Sending test message ID:0x%03lX...\r\n", test_msg.id);
     printf("Test data: ");
