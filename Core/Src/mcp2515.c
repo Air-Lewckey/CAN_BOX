@@ -1069,6 +1069,12 @@ void MCP2515_DiagnoseErrors(void)
     printf("\r\n--- Error Level Assessment ---\r\n");
     if (eflg & 0x20) {
         printf("CRITICAL: Bus-Off state, requires re-initialization\r\n");
+        printf("Attempting automatic Bus-Off recovery...\r\n");
+        if (MCP2515_RecoverFromBusOff() == MCP2515_OK) {
+            printf("[SUCCESS] Bus-Off recovery completed\r\n");
+        } else {
+            printf("[ERROR] Bus-Off recovery failed\r\n");
+        }
     } else if (eflg & 0x10) {
         printf("WARNING: Transmit Error Passive, TEC >= 128\r\n");
         printf("   Suggestion: Check bus connection and termination resistors\r\n");
@@ -1095,6 +1101,64 @@ void MCP2515_ClearAllErrors(void)
 }
 
 /**
+  * @brief  强制从Bus-Off状态恢复
+  * @param  None
+  * @retval MCP2515_OK: 成功, MCP2515_ERROR: 失败
+  */
+uint8_t MCP2515_RecoverFromBusOff(void)
+{
+    printf("\r\n=== Bus-Off Recovery Process ===\r\n");
+    
+    // 检查当前错误状态
+    uint8_t eflg = MCP2515_ReadRegister(MCP2515_EFLG);
+    printf("Current EFLG: 0x%02X\r\n", eflg);
+    
+    if (!(eflg & 0x20)) {
+        printf("[INFO] Not in Bus-Off state, no recovery needed\r\n");
+        return MCP2515_OK;
+    }
+    
+    printf("[CRITICAL] Bus-Off state detected, starting recovery...\r\n");
+    
+    // 步骤1: 强制进入配置模式
+    printf("Step 1: Force enter configuration mode...\r\n");
+    if (MCP2515_SetMode(MCP2515_MODE_CONFIG) != MCP2515_OK) {
+        printf("[ERROR] Failed to enter configuration mode\r\n");
+        return MCP2515_ERROR;
+    }
+    printf("[OK] Entered configuration mode\r\n");
+    
+    // 步骤2: 复位MCP2515
+    printf("Step 2: Reset MCP2515...\r\n");
+    MCP2515_Reset();
+    osDelay(100);
+    printf("[OK] MCP2515 reset completed\r\n");
+    
+    // 步骤3: 重新初始化
+    printf("Step 3: Re-initialize MCP2515...\r\n");
+    if (MCP2515_Init(MCP2515_BAUD_500K) != MCP2515_OK) {
+        printf("[ERROR] Re-initialization failed\r\n");
+        return MCP2515_ERROR;
+    }
+    printf("[OK] Re-initialization successful\r\n");
+    
+    // 步骤4: 验证恢复状态
+    printf("Step 4: Verify recovery...\r\n");
+    eflg = MCP2515_ReadRegister(MCP2515_EFLG);
+    uint8_t canstat = MCP2515_ReadRegister(MCP2515_CANSTAT);
+    printf("After recovery - EFLG: 0x%02X, CANSTAT: 0x%02X\r\n", eflg, canstat);
+    
+    if (eflg & 0x20) {
+        printf("[ERROR] Still in Bus-Off state after recovery\r\n");
+        return MCP2515_ERROR;
+    }
+    
+    printf("[SUCCESS] Bus-Off recovery completed successfully\r\n");
+    printf("================================\r\n");
+    return MCP2515_OK;
+}
+
+/**
   * @brief  回环模式测试
   * @param  None
   * @retval 测试结果 (MCP2515_OK: 成功, MCP2515_ERROR: 失败)
@@ -1106,6 +1170,18 @@ uint8_t MCP2515_LoopbackTest(void)
     uint8_t result = MCP2515_ERROR;
     
     printf("\r\n=== Loopback Mode Test ===\r\n");
+    
+    // 检查Bus-Off状态
+    uint8_t eflg = MCP2515_ReadRegister(MCP2515_EFLG);
+    if (eflg & 0x20) {
+        printf("[WARNING] Bus-Off state detected before loopback test\r\n");
+        printf("Attempting Bus-Off recovery...\r\n");
+        if (MCP2515_RecoverFromBusOff() != MCP2515_OK) {
+            printf("[ERROR] Bus-Off recovery failed, cannot proceed with loopback test\r\n");
+            return MCP2515_ERROR;
+        }
+        printf("[OK] Bus-Off recovery successful, proceeding with loopback test\r\n");
+    }
     
     // Switch to loopback mode
     printf("Switching to loopback mode...\r\n");
