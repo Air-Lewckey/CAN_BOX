@@ -4873,9 +4873,9 @@ uint8_t MCP2515_LoopbackTest(void)
     printf("Waiting 100ms for mode stabilization...\r\n");
  80020e6:	4889      	ldr	r0, [pc, #548]	@ (800230c <MCP2515_LoopbackTest+0x260>)
  80020e8:	f006 f8c0 	bl	800826c <puts>
-    HAL_Delay(100);  // Wait for mode switch completion
+    osDelay(100);  // Wait for mode switch completion - using osDelay for FreeRTOS compatibility
  80020ec:	2064      	movs	r0, #100	@ 0x64
- 80020ee:	f000 fea7 	bl	8002e40 <HAL_Delay>
+ 80020ee:	f003 f933 	bl	8005358 <osDelay>
     printf("Wait completed, preparing test message...\r\n");
  80020f2:	4887      	ldr	r0, [pc, #540]	@ (8002310 <MCP2515_LoopbackTest+0x264>)
  80020f4:	f006 f8ba 	bl	800826c <puts>
@@ -4987,9 +4987,9 @@ uint8_t MCP2515_LoopbackTest(void)
         printf("Waiting 50ms for loopback...\r\n");
  80021b0:	4862      	ldr	r0, [pc, #392]	@ (800233c <MCP2515_LoopbackTest+0x290>)
  80021b2:	f006 f85b 	bl	800826c <puts>
-        HAL_Delay(50);
+        osDelay(50);
  80021b6:	2032      	movs	r0, #50	@ 0x32
- 80021b8:	f000 fe42 	bl	8002e40 <HAL_Delay>
+ 80021b8:	f003 f8ce 	bl	8005358 <osDelay>
         
         // Check if message received
         printf("Checking for received message...\r\n");
@@ -5159,9 +5159,9 @@ uint8_t MCP2515_LoopbackTest(void)
     MCP2515_SetMode(MCP2515_MODE_NORMAL);
  80022d8:	2000      	movs	r0, #0
  80022da:	f7ff f84d 	bl	8001378 <MCP2515_SetMode>
-    HAL_Delay(100);
+    osDelay(100);
  80022de:	2064      	movs	r0, #100	@ 0x64
- 80022e0:	f000 fdae 	bl	8002e40 <HAL_Delay>
+ 80022e0:	f003 f83a 	bl	8005358 <osDelay>
     
     printf("==========================\r\n");
  80022e4:	4829      	ldr	r0, [pc, #164]	@ (800238c <MCP2515_LoopbackTest+0x2e0>)
@@ -5371,9 +5371,9 @@ void MCP2515_CANOETest(void)
  800247c:	f005 fef6 	bl	800826c <puts>
     }
     
-    HAL_Delay(500);  // 延时500ms
+    osDelay(500);  // 延时500ms
  8002480:	f44f 70fa 	mov.w	r0, #500	@ 0x1f4
- 8002484:	f000 fcdc 	bl	8002e40 <HAL_Delay>
+ 8002484:	f002 ff68 	bl	8005358 <osDelay>
     
     // 准备测试报文2 - 扩展帧
     test_msg.id = 0x12345678;
@@ -5495,9 +5495,9 @@ void MCP2515_CANOETest(void)
  800254e:	f005 fe8d 	bl	800826c <puts>
     }
     
-    HAL_Delay(500);  // 延时500ms
+    osDelay(500);  // 延时500ms
  8002552:	f44f 70fa 	mov.w	r0, #500	@ 0x1f4
- 8002556:	f000 fc73 	bl	8002e40 <HAL_Delay>
+ 8002556:	f002 feff 	bl	8005358 <osDelay>
     
     // 准备测试报文3 - RTR帧
     test_msg.id = 0x456;

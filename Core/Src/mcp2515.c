@@ -346,9 +346,10 @@ uint8_t MCP2515_Init(uint8_t baudrate)
         return MCP2515_ERROR;
     }
     
-    // 配置接收缓冲区控制寄存器
-    MCP2515_WriteRegister(MCP2515_RXB0CTRL, 0x60);  // 接收所有消息
-    MCP2515_WriteRegister(MCP2515_RXB1CTRL, 0x60);  // 接收所有消息
+    // 配置接收缓冲区控制寄存器 - 禁用过滤器，接收所有消息
+    MCP2515_WriteRegister(MCP2515_RXB0CTRL, 0x60);  // 接收所有消息，禁用过滤器
+    MCP2515_WriteRegister(MCP2515_RXB1CTRL, 0x60);  // 接收所有消息，禁用过滤器
+    printf("RX buffer configuration: RXB0CTRL=0x60, RXB1CTRL=0x60 (accept all messages)\r\n");
     
     // 清除所有中断标志
     MCP2515_WriteRegister(MCP2515_CANINTF, 0x00);
@@ -1114,6 +1115,14 @@ uint8_t MCP2515_LoopbackTest(void)
     }
     
     printf("[OK] Switched to loopback mode\r\n");
+    
+    // 验证模式切换和接收缓冲区配置
+    uint8_t current_mode = MCP2515_ReadRegister(MCP2515_CANSTAT) & 0xE0;
+    uint8_t rxb0ctrl = MCP2515_ReadRegister(MCP2515_RXB0CTRL);
+    uint8_t rxb1ctrl = MCP2515_ReadRegister(MCP2515_RXB1CTRL);
+    printf("Mode verification: CANSTAT=0x%02X (should be 0x40 for loopback)\r\n", current_mode);
+    printf("RX buffer config: RXB0CTRL=0x%02X, RXB1CTRL=0x%02X\r\n", rxb0ctrl, rxb1ctrl);
+    
     printf("[INFO] Starting loopback test...\r\n");
     printf("Waiting 100ms for mode stabilization...\r\n");
     osDelay(100);  // Wait for mode switch completion - using osDelay for FreeRTOS compatibility
@@ -1150,6 +1159,23 @@ uint8_t MCP2515_LoopbackTest(void)
         printf("Waiting 50ms for loopback...\r\n");
         osDelay(50);
         
+        // 详细检查MCP2515状态
+        printf("Checking MCP2515 status after loopback delay...\r\n");
+        uint8_t canintf = MCP2515_ReadRegister(MCP2515_CANINTF);
+        uint8_t canstat = MCP2515_ReadRegister(MCP2515_CANSTAT);
+        uint8_t eflg = MCP2515_ReadRegister(MCP2515_EFLG);
+        printf("CANINTF: 0x%02X, CANSTAT: 0x%02X, EFLG: 0x%02X\r\n", canintf, canstat, eflg);
+        
+        // 分析CANINTF标志
+        if (canintf & 0x01) printf("  RX0IF: Receive Buffer 0 Full\r\n");
+        if (canintf & 0x02) printf("  RX1IF: Receive Buffer 1 Full\r\n");
+        if (canintf & 0x04) printf("  TX0IF: Transmit Buffer 0 Empty\r\n");
+        if (canintf & 0x08) printf("  TX1IF: Transmit Buffer 1 Empty\r\n");
+        if (canintf & 0x10) printf("  TX2IF: Transmit Buffer 2 Empty\r\n");
+        if (canintf & 0x20) printf("  ERRIF: Error Interrupt\r\n");
+        if (canintf & 0x40) printf("  WAKIF: Wake-up Interrupt\r\n");
+        if (canintf & 0x80) printf("  MERRF: Message Error Interrupt\r\n");
+        
         // Check if message received
         printf("Checking for received message...\r\n");
         uint8_t check_result = MCP2515_CheckReceive();
@@ -1183,10 +1209,16 @@ uint8_t MCP2515_LoopbackTest(void)
             }
         } else {
             printf("[ERROR] No loopback message received\r\n");
+            printf("Detailed analysis:\r\n");
+            printf("   - CANINTF register: 0x%02X\r\n", canintf);
+            printf("   - Expected RX0IF(0x01) or RX1IF(0x02) to be set\r\n");
+            if (canintf & 0x80) printf("   - MERRF flag indicates message error\r\n");
+            if (canintf & 0x20) printf("   - ERRIF flag indicates general error\r\n");
             printf("Possible causes:\r\n");
             printf("  - MCP2515 not in loopback mode\r\n");
             printf("  - Receive buffer configuration issue\r\n");
             printf("  - Message filtering problem\r\n");
+            printf("  - Internal loopback path not working\r\n");
         }
     } else {
         printf("[ERROR] Message send failed (result: %d)\r\n", send_result);
