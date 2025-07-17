@@ -229,17 +229,17 @@ void MCP2515_Reset(void)
     
     // 检查复位状态 - 允许多种有效状态
     if (canstat == 0x80) {
-        printf("✓ MCP2515 reset successful (Configuration mode)\r\n");
+        printf("[OK] MCP2515 reset successful (Configuration mode)\r\n");
     } else if (canstat == 0x40) {
-        printf("✓ MCP2515 reset successful (Loopback mode detected)\r\n");
+        printf("[OK] MCP2515 reset successful (Loopback mode detected)\r\n");
         printf("  Note: This is normal, will switch to config mode\r\n");
     } else if (canstat == 0x00) {
-        printf("✓ MCP2515 reset successful (Normal mode detected)\r\n");
+        printf("[OK] MCP2515 reset successful (Normal mode detected)\r\n");
         printf("  Note: This is normal, will switch to config mode\r\n");
     } else if (canstat == 0xFF) {
-        printf("✗ No SPI response - Check MISO connection\r\n");
+        printf("[ERROR] No SPI response - Check MISO connection\r\n");
     } else {
-        printf("⚠ Unexpected reset state: 0x%02X\r\n", canstat);
+        printf("[WARN] Unexpected reset state: 0x%02X\r\n", canstat);
         printf("  Continuing initialization attempt...\r\n");
     }
 }
@@ -319,24 +319,24 @@ uint8_t MCP2515_Init(uint8_t baudrate)
     // 强制切换到配置模式，不依赖复位状态
     printf("Forcing switch to configuration mode...\r\n");
     if (MCP2515_SetMode(MCP2515_MODE_CONFIG) != MCP2515_OK) {
-        printf("✗ Failed to enter configuration mode\r\n");
+        printf("[ERROR] Failed to enter configuration mode\r\n");
         // 尝试再次复位和切换
         printf("Retrying reset and mode switch...\r\n");
         MCP2515_Reset();
         osDelay(50);  // 增加延时
         if (MCP2515_SetMode(MCP2515_MODE_CONFIG) != MCP2515_OK) {
-            printf("✗ Second attempt failed\r\n");
+            printf("[ERROR] Second attempt failed\r\n");
             return MCP2515_ERROR;
         }
     }
-    printf("✓ Successfully entered configuration mode\r\n");
+    printf("[OK] Successfully entered configuration mode\r\n");
     
     // 检查MCP2515是否响应（在配置模式下测试）
     if (MCP2515_SelfTest() != MCP2515_OK) {
-        printf("✗ MCP2515 self-test failed\r\n");
+        printf("[ERROR] MCP2515 self-test failed\r\n");
         return MCP2515_ERROR;
     }
-    printf("✓ MCP2515 self-test passed\r\n");
+    printf("[OK] MCP2515 self-test passed\r\n");
     
     // 已经在配置模式下，直接进行波特率设置
     
@@ -739,7 +739,7 @@ uint8_t MCP2515_HardwareTest(void)
         osDelay(1);
     }
     MCP2515_CS_High();
-    printf("✓ CS pin control test completed\r\n");
+    printf("[OK] CS pin control test completed\r\n");
     
     // 2. SPI基础通信测试
     printf("Step 2: Testing basic SPI communication...\r\n");
@@ -750,7 +750,7 @@ uint8_t MCP2515_HardwareTest(void)
     printf("SPI test results: 0x00->0x%02X, 0xFF->0x%02X\r\n", dummy1, dummy2);
     
     if (dummy1 == 0xFF && dummy2 == 0xFF) {
-        printf("⚠ Warning: All SPI reads return 0xFF\r\n");
+        printf("[WARN] Warning: All SPI reads return 0xFF\r\n");
         printf("  This suggests MISO line issue or MCP2515 not responding\r\n");
     }
     
@@ -772,9 +772,9 @@ uint8_t MCP2515_HardwareTest(void)
     printf("CNF1 write 0x%02X, read back 0x%02X\r\n", test_value, read_back);
     
     if (read_back == test_value) {
-        printf("✓ Register write test 1 passed\r\n");
+        printf("[OK] Register write test 1 passed\r\n");
     } else {
-        printf("✗ Register write test 1 failed\r\n");
+        printf("[ERROR] Register write test 1 failed\r\n");
         return MCP2515_ERROR;
     }
     
@@ -785,9 +785,9 @@ uint8_t MCP2515_HardwareTest(void)
     printf("CNF1 write 0x%02X, read back 0x%02X\r\n", test_value, read_back);
     
     if (read_back == test_value) {
-        printf("✓ Register write test 2 passed\r\n");
+        printf("[OK] Register write test 2 passed\r\n");
     } else {
-        printf("✗ Register write test 2 failed\r\n");
+        printf("[ERROR] Register write test 2 failed\r\n");
         return MCP2515_ERROR;
     }
     
@@ -795,7 +795,7 @@ uint8_t MCP2515_HardwareTest(void)
     MCP2515_WriteRegister(MCP2515_CNF1, original);
     printf("CNF1 restored to original value: 0x%02X\r\n", original);
     
-    printf("✓ All hardware tests passed!\r\n");
+    printf("[OK] All hardware tests passed!\r\n");
     return MCP2515_OK;
 }
 
@@ -1112,8 +1112,8 @@ uint8_t MCP2515_LoopbackTest(void)
         return MCP2515_ERROR;
     }
     
-    printf("✓ Switched to loopback mode\r\n");
-    printf("📋 Starting loopback test...\r\n");
+    printf("[OK] Switched to loopback mode\r\n");
+    printf("[INFO] Starting loopback test...\r\n");
     printf("Waiting 100ms for mode stabilization...\r\n");
     HAL_Delay(100);  // Wait for mode switch completion
     printf("Wait completed, preparing test message...\r\n");
@@ -1169,26 +1169,26 @@ uint8_t MCP2515_LoopbackTest(void)
                     }
                     
                     if (data_match) {
-                        printf("SUCCESS: Loopback test passed! MCP2515 hardware is working\r\n");
+                        printf("[SUCCESS] Loopback test passed! MCP2515 hardware is working\r\n");
                         result = MCP2515_OK;
                     } else {
-                        printf("ERROR: Data mismatch\r\n");
+                        printf("[ERROR] Data mismatch\r\n");
                     }
                 } else {
-                    printf("ERROR: ID or DLC mismatch\r\n");
+                    printf("[ERROR] ID or DLC mismatch\r\n");
                 }
             } else {
-                printf("ERROR: Failed to receive message\r\n");
+                printf("[ERROR] Failed to receive message\r\n");
             }
         } else {
-            printf("ERROR: No loopback message received\r\n");
+            printf("[ERROR] No loopback message received\r\n");
             printf("Possible causes:\r\n");
             printf("  - MCP2515 not in loopback mode\r\n");
             printf("  - Receive buffer configuration issue\r\n");
             printf("  - Message filtering problem\r\n");
         }
     } else {
-        printf("ERROR: Message send failed (result: %d)\r\n", send_result);
+        printf("[ERROR] Message send failed (result: %d)\r\n", send_result);
         if (send_result == MCP2515_TIMEOUT) {
             printf("  - Send timeout occurred\r\n");
         } else if (send_result == MCP2515_ERROR) {
@@ -1257,14 +1257,14 @@ void MCP2515_CANOETest(void)
     // 发送报文
     result = MCP2515_SendMessage(&test_msg);
     if (result == MCP2515_OK) {
-        printf("✓ Message sent successfully to CAN bus\r\n");
+        printf("[OK] Message sent successfully to CAN bus\r\n");
         printf(">> Check CANOE for received message with ID 0x123\r\n");
     } else if (result == MCP2515_TIMEOUT) {
-        printf("⚠ Message send timeout - No ACK received\r\n");
+        printf("[WARN] Message send timeout - No ACK received\r\n");
         printf(">> This is normal if no other CAN nodes are connected\r\n");
         printf(">> Check CANOE for transmitted message attempt\r\n");
     } else {
-        printf("✗ Message send failed\r\n");
+        printf("[ERROR] Message send failed\r\n");
     }
     
     HAL_Delay(500);  // 延时500ms
@@ -1294,14 +1294,14 @@ void MCP2515_CANOETest(void)
     // 发送报文
     result = MCP2515_SendMessage(&test_msg);
     if (result == MCP2515_OK) {
-        printf("✓ Message sent successfully to CAN bus\r\n");
+        printf("[OK] Message sent successfully to CAN bus\r\n");
         printf(">> Check CANOE for received message with ID 0x12345678\r\n");
     } else if (result == MCP2515_TIMEOUT) {
-        printf("⚠ Message send timeout - No ACK received\r\n");
+        printf("[WARN] Message send timeout - No ACK received\r\n");
         printf(">> This is normal if no other CAN nodes are connected\r\n");
         printf(">> Check CANOE for transmitted message attempt\r\n");
     } else {
-        printf("✗ Message send failed\r\n");
+        printf("[ERROR] Message send failed\r\n");
     }
     
     HAL_Delay(500);  // 延时500ms
@@ -1320,14 +1320,14 @@ void MCP2515_CANOETest(void)
     // 发送RTR报文
     result = MCP2515_SendMessage(&test_msg);
     if (result == MCP2515_OK) {
-        printf("✓ RTR message sent successfully to CAN bus\r\n");
+        printf("[OK] RTR message sent successfully to CAN bus\r\n");
         printf(">> Check CANOE for received RTR message with ID 0x456\r\n");
     } else if (result == MCP2515_TIMEOUT) {
-        printf("⚠ RTR message send timeout - No ACK received\r\n");
+        printf("[WARN] RTR message send timeout - No ACK received\r\n");
         printf(">> This is normal if no other CAN nodes are connected\r\n");
         printf(">> Check CANOE for transmitted RTR message attempt\r\n");
     } else {
-        printf("✗ RTR message send failed\r\n");
+        printf("[ERROR] RTR message send failed\r\n");
     }
     
     test_counter++;
@@ -1355,16 +1355,16 @@ void MCP2515_InitFailureDiagnosis(void)
     // 1. 详细的硬件连接测试
     printf("\r\nStep 1: Comprehensive hardware test...\r\n");
     if (MCP2515_HardwareTest() == MCP2515_OK) {
-        printf("✓ Hardware connections appear to be working\r\n");
+        printf("[OK] Hardware connections appear to be working\r\n");
     } else {
-        printf("✗ Hardware test failed - Check connections\r\n");
+        printf("[ERROR] Hardware test failed - Check connections\r\n");
         printf("\r\nHardware troubleshooting checklist:\r\n");
-        printf("  □ SPI connections: SCK(PB3), MISO(PB4), MOSI(PB5)\r\n");
-        printf("  □ CS connection: PB12\r\n");
-        printf("  □ Power supply: 3.3V to MCP2515 VCC\r\n");
-        printf("  □ Ground connection: GND\r\n");
-        printf("  □ Crystal oscillator: 8MHz or 16MHz\r\n");
-        printf("  □ Decoupling capacitors: 100nF near MCP2515\r\n");
+        printf("  - SPI connections: SCK(PB3), MISO(PB4), MOSI(PB5)\r\n");
+        printf("  - CS connection: PB12\r\n");
+        printf("  - Power supply: 3.3V to MCP2515 VCC\r\n");
+        printf("  - Ground connection: GND\r\n");
+        printf("  - Crystal oscillator: 8MHz or 16MHz\r\n");
+        printf("  - Decoupling capacitors: 100nF near MCP2515\r\n");
         return;
     }
     
@@ -1379,10 +1379,10 @@ void MCP2515_InitFailureDiagnosis(void)
         printf("  CANSTAT: 0x%02X\r\n", canstat);
         
         if (canstat != 0xFF) {
-            printf("  ✓ MCP2515 responding\r\n");
+            printf("  [OK] MCP2515 responding\r\n");
             break;
         } else {
-            printf("  ✗ No response\r\n");
+            printf("  [ERROR] No response\r\n");
         }
     }
     
@@ -1398,7 +1398,7 @@ void MCP2515_InitFailureDiagnosis(void)
     printf("Current mode: 0x%02X\r\n", mode);
     
     if (mode == MCP2515_MODE_CONFIG) {
-        printf("✓ Successfully entered configuration mode\r\n");
+        printf("[OK] Successfully entered configuration mode\r\n");
         
         // 尝试配置波特率
         printf("Configuring 500K baud rate...\r\n");
@@ -1416,14 +1416,14 @@ void MCP2515_InitFailureDiagnosis(void)
         // 尝试切换到正常模式
         printf("Switching to normal mode...\r\n");
         if (MCP2515_SetMode(MCP2515_MODE_NORMAL) == MCP2515_OK) {
-            printf("✓ Force initialization successful!\r\n");
+            printf("[OK] Force initialization successful!\r\n");
             printf("\r\n--- Starting CANOE Test Mode ---\r\n");
             MCP2515_CANOETest();
         } else {
-            printf("✗ Failed to switch to normal mode\r\n");
+            printf("[ERROR] Failed to switch to normal mode\r\n");
         }
     } else {
-        printf("✗ Cannot enter configuration mode\r\n");
+        printf("[ERROR] Cannot enter configuration mode\r\n");
     }
     
     printf("\r\n=== Diagnosis completed ===\r\n");
