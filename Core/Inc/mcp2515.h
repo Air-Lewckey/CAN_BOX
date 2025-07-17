@@ -203,6 +203,7 @@ void MCP2515_ClearAllErrors(void);
 uint8_t MCP2515_LoopbackTest(void);
 void CAN_DiagnoseAndFix(void);
 void MCP2515_CANOETest(void);
+void MCP2515_InitFailureDiagnosis(void);
 #ifdef __cplusplus
 }
 #endif

@@ -60,6 +60,13 @@ uint8_t CAN_App_Init(void)
     // 初始化MCP2515 (500Kbps波特率)
     if (MCP2515_Init(MCP2515_BAUD_500K) != MCP2515_OK) {
         printf("MCP2515 initialization failed!\r\n");
+        printf("CAN application initialization failed!\r\n");
+        
+        printf("\r\nWARNING: CAN initialization failed, starting diagnosis...\r\n");
+        
+        // 调用初始化失败诊断函数
+        MCP2515_InitFailureDiagnosis();
+        
         return CAN_APP_ERROR;
     }
     

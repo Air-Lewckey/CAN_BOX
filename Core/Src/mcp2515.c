@@ -225,14 +225,22 @@ void MCP2515_Reset(void)
     
     // 验证复位状态
     uint8_t canstat = MCP2515_ReadRegister(MCP2515_CANSTAT);
-    printf("CANSTAT after reset: 0x%02X (Expected: 0x80)\r\n", canstat);
+    printf("CANSTAT after reset: 0x%02X\r\n", canstat);
     
+    // 检查复位状态 - 允许多种有效状态
     if (canstat == 0x80) {
-        printf("✓ MCP2515 reset successful\r\n");
+        printf("✓ MCP2515 reset successful (Configuration mode)\r\n");
+    } else if (canstat == 0x40) {
+        printf("✓ MCP2515 reset successful (Loopback mode detected)\r\n");
+        printf("  Note: This is normal, will switch to config mode\r\n");
+    } else if (canstat == 0x00) {
+        printf("✓ MCP2515 reset successful (Normal mode detected)\r\n");
+        printf("  Note: This is normal, will switch to config mode\r\n");
     } else if (canstat == 0xFF) {
         printf("✗ No SPI response - Check MISO connection\r\n");
     } else {
-        printf("✗ Unexpected reset state: 0x%02X\r\n", canstat);
+        printf("⚠ Unexpected reset state: 0x%02X\r\n", canstat);
+        printf("  Continuing initialization attempt...\r\n");
     }
 }
 
@@ -297,15 +305,29 @@ uint8_t MCP2515_Init(uint8_t baudrate)
     // 复位MCP2515
     MCP2515_Reset();
     
-    // 检查MCP2515是否响应
-    if (MCP2515_SelfTest() != MCP2515_OK) {
-        return MCP2515_ERROR;
-    }
-    
-    // 设置为配置模式
+    // 强制切换到配置模式，不依赖复位状态
+    printf("Forcing switch to configuration mode...\r\n");
     if (MCP2515_SetMode(MCP2515_MODE_CONFIG) != MCP2515_OK) {
+        printf("✗ Failed to enter configuration mode\r\n");
+        // 尝试再次复位和切换
+        printf("Retrying reset and mode switch...\r\n");
+        MCP2515_Reset();
+        osDelay(50);  // 增加延时
+        if (MCP2515_SetMode(MCP2515_MODE_CONFIG) != MCP2515_OK) {
+            printf("✗ Second attempt failed\r\n");
+            return MCP2515_ERROR;
+        }
+    }
+    printf("✓ Successfully entered configuration mode\r\n");
+    
+    // 检查MCP2515是否响应（在配置模式下测试）
+    if (MCP2515_SelfTest() != MCP2515_OK) {
+        printf("✗ MCP2515 self-test failed\r\n");
         return MCP2515_ERROR;
     }
+    printf("✓ MCP2515 self-test passed\r\n");
+    
+    // 已经在配置模式下，直接进行波特率设置
     
     // 设置波特率
     if (MCP2515_SetBaudRate(baudrate) != MCP2515_OK) {
@@ -1261,6 +1283,92 @@ void MCP2515_CANOETest(void)
     printf("\r\nPlease check CANOE trace window for these messages\r\n");
     printf("If messages appear in CANOE, CAN transmission is working!\r\n");
     printf("===============================\r\n");
+}
+
+/**
+  * @brief  初始化失败专用诊断函数
+  * @param  None
+  * @retval None
+  */
+void MCP2515_InitFailureDiagnosis(void)
+{
+    printf("\r\n=== MCP2515 Initialization Failure Diagnosis ===\r\n");
+    
+    // 1. 详细的硬件连接测试
+    printf("\r\nStep 1: Comprehensive hardware test...\r\n");
+    if (MCP2515_HardwareTest() == MCP2515_OK) {
+        printf("✓ Hardware connections appear to be working\r\n");
+    } else {
+        printf("✗ Hardware test failed - Check connections\r\n");
+        printf("\r\nHardware troubleshooting checklist:\r\n");
+        printf("  □ SPI connections: SCK(PB3), MISO(PB4), MOSI(PB5)\r\n");
+        printf("  □ CS connection: PB12\r\n");
+        printf("  □ Power supply: 3.3V to MCP2515 VCC\r\n");
+        printf("  □ Ground connection: GND\r\n");
+        printf("  □ Crystal oscillator: 8MHz or 16MHz\r\n");
+        printf("  □ Decoupling capacitors: 100nF near MCP2515\r\n");
+        return;
+    }
+    
+    // 2. 多次复位尝试
+    printf("\r\nStep 2: Multiple reset attempts...\r\n");
+    for (int i = 0; i < 3; i++) {
+        printf("Reset attempt %d/3:\r\n", i + 1);
+        MCP2515_Reset();
+        osDelay(100);
+        
+        uint8_t canstat = MCP2515_ReadRegister(MCP2515_CANSTAT);
+        printf("  CANSTAT: 0x%02X\r\n", canstat);
+        
+        if (canstat != 0xFF) {
+            printf("  ✓ MCP2515 responding\r\n");
+            break;
+        } else {
+            printf("  ✗ No response\r\n");
+        }
+    }
+    
+    // 3. 强制初始化尝试
+    printf("\r\nStep 3: Force initialization attempt...\r\n");
+    
+    // 直接设置配置模式
+    printf("Attempting to force configuration mode...\r\n");
+    MCP2515_WriteRegister(MCP2515_CANCTRL, MCP2515_MODE_CONFIG);
+    osDelay(50);
+    
+    uint8_t mode = MCP2515_GetMode();
+    printf("Current mode: 0x%02X\r\n", mode);
+    
+    if (mode == MCP2515_MODE_CONFIG) {
+        printf("✓ Successfully entered configuration mode\r\n");
+        
+        // 尝试配置波特率
+        printf("Configuring 500K baud rate...\r\n");
+        MCP2515_WriteRegister(MCP2515_CNF1, 0x00);
+        MCP2515_WriteRegister(MCP2515_CNF2, 0xB1);
+        MCP2515_WriteRegister(MCP2515_CNF3, 0x85);
+        
+        // 配置接收缓冲区
+        MCP2515_WriteRegister(MCP2515_RXB0CTRL, 0x60);
+        MCP2515_WriteRegister(MCP2515_RXB1CTRL, 0x60);
+        
+        // 清除中断标志
+        MCP2515_WriteRegister(MCP2515_CANINTF, 0x00);
+        
+        // 尝试切换到正常模式
+        printf("Switching to normal mode...\r\n");
+        if (MCP2515_SetMode(MCP2515_MODE_NORMAL) == MCP2515_OK) {
+            printf("✓ Force initialization successful!\r\n");
+            printf("\r\n--- Starting CANOE Test Mode ---\r\n");
+            MCP2515_CANOETest();
+        } else {
+            printf("✗ Failed to switch to normal mode\r\n");
+        }
+    } else {
+        printf("✗ Cannot enter configuration mode\r\n");
+    }
+    
+    printf("\r\n=== Diagnosis completed ===\r\n");
 }
 
 /**

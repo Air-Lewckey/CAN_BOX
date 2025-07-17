@@ -36,4 +36,5 @@
 ../Core/Src/mcp2515.c:982:6:MCP2515_DiagnoseErrors	20
 ../Core/Src/mcp2515.c:1039:6:MCP2515_ClearAllErrors	1
 ../Core/Src/mcp2515.c:1054:9:MCP2515_LoopbackTest	11
-../Core/Src/mcp2515.c:1137:6:CAN_DiagnoseAndFix	3
+../Core/Src/mcp2515.c:1139:6:MCP2515_CANOETest	10
+../Core/Src/mcp2515.c:1271:6:CAN_DiagnoseAndFix	3
