@@ -22,7 +22,14 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "can_app.h"
+#include "can.h"
+#include "usart.h"
+#include "can_simple_demo.h"
+#include "can2_demo.h"  // 新增CAN2演示模块
+#include "can2_test.h"  // 新增CAN2测试功能
+#include "can1_can2_bridge_test.h"
+#include "can_dual_node.h"  // 添加双节点通信头文件
+// #include "mcp2515_test_demo.h"  // 注释MCP2515相关代码
 #include <stdio.h>
 /* USER CODE END Includes */
 
@@ -44,7 +51,10 @@
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi1;
 
-UART_HandleTypeDef huart2;
+/* CAN和UART句柄在各自的模块文件中定义 */
+extern CAN_HandleTypeDef hcan1;
+extern CAN_HandleTypeDef hcan2;
+extern UART_HandleTypeDef huart2;
 
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
@@ -80,7 +90,9 @@ const osMessageQueueAttr_t myQueue01_attributes = {
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
-static void MX_USART2_UART_Init(void);
+void MX_USART2_UART_Init(void);
+void MX_CAN1_Init(void);
+void MX_CAN2_Init(void);
 void StartDefaultTask(void *argument);
 void StartCANSendTask(void *argument);
 void StartCANReceiveTask(void *argument);
@@ -125,36 +137,56 @@ int main(void)
   MX_GPIO_Init();
   MX_SPI1_Init();
   MX_USART2_UART_Init();
+  MX_CAN1_Init();
+  MX_CAN2_Init();
   /* USER CODE BEGIN 2 */
-  // 初始化CAN应用
-  printf("\r\n=== STM32F407 + MCP2515 CAN Communication System Startup ===\r\n");
-  printf("System Clock: %lu MHz\r\n", HAL_RCC_GetHCLKFreq() / 1000000);
-  printf("SPI1 Clock: %lu MHz\r\n", HAL_RCC_GetPCLK2Freq() / 1000000 / 32);  // SPI1预分频32
-  
-  // 延时等待硬件稳定
-  HAL_Delay(100);
-  
-  // 初始化CAN应用
-  if (CAN_App_Init() == CAN_APP_OK) {
-    printf("CAN application initialization successful!\r\n");
-    
-    // 执行自检测试
-    if (CAN_App_SelfTest() == CAN_APP_OK) {
-      printf("CAN self-test passed!\r\n");
-    } else {
-      printf("CAN self-test failed!\r\n");
-      // If self-test fails, run diagnosis
-      printf("\r\nWARNING: CAN communication problem detected, starting diagnosis...\r\n");
-      CAN_DiagnoseAndFix();
-    }
+  // Initialize CAN1 Simple Demo
+  if (CAN_SimpleDemo_Init() == HAL_OK) {
+    // printf("\r\n=== CAN2 Receiver Mode ===\r\n");
+    // printf("CAN1: Initialized (Silent Mode)\r\n");
   } else {
-    printf("CAN application initialization failed!\r\n");
-    // If initialization fails, run diagnosis
-    printf("\r\nWARNING: CAN initialization failed, starting diagnosis...\r\n");
-    CAN_DiagnoseAndFix();
+    // printf("\r\nCAN1 initialization failed!\r\n");
+    Error_Handler();
   }
   
-  printf("System initialization completed, starting operation...\r\n\r\n");
+  // Initialize CAN2 Demo (仅接收模式)
+  if (CAN2_Demo_Init() == HAL_OK) {
+    // printf("CAN2: Initialized (Receive Only Mode)\r\n");
+    // printf("CAN2 will display all CAN bus messages\r\n\r\n");
+  } else {
+    // printf("\r\nCAN2 initialization failed!\r\n");
+    Error_Handler();
+  }
+  
+  // CAN2增强测试已禁用 - 仅接收模式
+  // if (CAN2_Test_Init() == HAL_OK) {
+  //   printf("CAN2 Enhanced Test: Initialized\r\n");
+  // } else {
+  //   printf("CAN2 Enhanced Test initialization failed!\r\n");
+  // }
+  
+  // CAN1-CAN2桥接测试已禁用 - CAN2仅接收
+  // if (CAN1_CAN2_BridgeTest_Init() == HAL_OK) {
+  //   printf("\r\n=== CAN1-CAN2 Bridge Test ===\r\n");
+  //   printf("CAN1-CAN2 Bridge Test: Initialized\r\n");
+  // } else {
+  //   printf("CAN1-CAN2 Bridge Test initialization failed!\r\n");
+  // }
+  
+  /*
+  // MCP2515相关代码已注释 - 硬件已移除
+  // Initialize MCP2515 Test Demo
+  if (MCP2515_TestDemo_Init() == HAL_OK) {
+    printf("MCP2515 Status: Initialized (500Kbps)\r\n");
+    printf("\r\n=== Dual CAN System Configuration ===\r\n");
+    printf("CAN1 Message ID: 0x100-0x500 (STM32 Built-in CAN)\r\n");
+    printf("MCP2515 Message ID: 0x600-0x670 (External CAN Controller)\r\n");
+    printf("Starting periodic test message transmission...\r\n\r\n");
+  } else {
+    printf("\r\nMCP2515 Test Demo initialization failed!\r\n");
+    printf("Continue running CAN1 test...\r\n\r\n");
+  }
+  */
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -191,7 +223,13 @@ int main(void)
   CANReceiveTaskHandle = osThreadNew(StartCANReceiveTask, NULL, &CANReceiveTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
-  /* add threads, ... */
+  /* CAN1-CAN2桥接测试任务已禁用 - CAN2仅作为接收器 */
+  // const osThreadAttr_t bridgeTestTaskAttributes = {
+  //   .name = "BridgeTestTask",
+  //   .stack_size = 512 * 4,
+  //   .priority = (osPriority_t) osPriorityNormal,
+  // };
+  // osThreadNew(CAN1_CAN2_BridgeTest_Task, NULL, &bridgeTestTaskAttributes);
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_EVENTS */
@@ -259,6 +297,8 @@ void SystemClock_Config(void)
   }
 }
 
+/* CAN1和CAN2初始化函数已移至can.c文件中 */
+
 /**
   * @brief SPI1 Initialization Function
   * @param None
@@ -282,7 +322,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_32;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -297,38 +337,7 @@ static void MX_SPI1_Init(void)
 
 }
 
-/**
-  * @brief USART2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART2_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART2_Init 0 */
-
-  /* USER CODE END USART2_Init 0 */
-
-  /* USER CODE BEGIN USART2_Init 1 */
-
-  /* USER CODE END USART2_Init 1 */
-  huart2.Instance = USART2;
-  huart2.Init.BaudRate = 115200;
-  huart2.Init.WordLength = UART_WORDLENGTH_8B;
-  huart2.Init.StopBits = UART_STOPBITS_1;
-  huart2.Init.Parity = UART_PARITY_NONE;
-  huart2.Init.Mode = UART_MODE_TX_RX;
-  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART2_Init 2 */
-
-  /* USER CODE END USART2_Init 2 */
-
-}
+/* USART2初始化函数已移至usart.c文件中 */
 
 /**
   * @brief GPIO Initialization Function
@@ -337,7 +346,6 @@ static void MX_USART2_UART_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* USER CODE BEGIN MX_GPIO_Init_1 */
 
   /* USER CODE END MX_GPIO_Init_1 */
@@ -347,44 +355,30 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(MCP2515_CS_GPIO_Port, MCP2515_CS_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin : MCP2515_INT_Pin */
-  GPIO_InitStruct.Pin = MCP2515_INT_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(MCP2515_INT_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : MCP2515_CS_Pin */
-  GPIO_InitStruct.Pin = MCP2515_CS_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
-  HAL_GPIO_Init(MCP2515_CS_GPIO_Port, &GPIO_InitStruct);
-
-  /* EXTI interrupt init*/
-  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 6, 0);
-  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
-
   /* USER CODE BEGIN MX_GPIO_Init_2 */
-
+  /*
+  // MCP2515相关GPIO初始化代码已注释 - 硬件已移除
+  // Set MCP2515 CS pin to high level (deselected state)
+  HAL_GPIO_WritePin(MCP2515_CS_GPIO_Port, MCP2515_CS_Pin, GPIO_PIN_SET);
+  */
   /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
 /**
-  * @brief  重定向printf到USART2
-  * @param  file: 文件描述符
-  * @param  ptr: 数据指针
-  * @param  len: 数据长度
-  * @retval 发送的字节数
+  * @brief  Redirect printf to USART2
+  * @param  file: File descriptor
+  * @param  ptr: Data pointer
+  * @param  len: Data length
+  * @retval Number of bytes sent
   */
 int _write(int file, char *ptr, int len)
 {
   HAL_UART_Transmit(&huart2, (uint8_t*)ptr, len, HAL_MAX_DELAY);
   return len;
 }
+
+/* CAN接收回调函数已移至can_dual_node.c文件中 */
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -397,38 +391,26 @@ int _write(int file, char *ptr, int len)
 void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN 5 */
-  uint32_t last_status_print = 0;
-  uint32_t last_heartbeat_print = 0;
-  uint32_t heartbeat_counter = 0;
-  
-  printf("Default Task Started\r\n");  // 使用英文避免乱码
-  printf("System Heartbeat Monitor Active\r\n");
+  /* 恢复CAN1和CAN2的状态监控 */
   
   /* Infinite loop */
   for(;;)
   {
-    uint32_t current_time = HAL_GetTick();
+    // 打印CAN1和CAN2的统计信息
+    // CAN_PrintStats();
+    // CAN_PrintNodeStatus();
     
-    // 每2秒发送一次心跳数据包（增加频率）
-    if ((current_time - last_heartbeat_print) >= 2000) {
-      heartbeat_counter++;
-      printf("[%lu] Heartbeat #%lu - System Running OK - Time: %lu ms\r\n", 
-             heartbeat_counter, heartbeat_counter, current_time);
-      last_heartbeat_print = current_time;
-    }
+    // 打印CAN1状态
+    // uint32_t can1_state = HAL_CAN_GetState(&hcan1);
+    // printf("CAN1 State: %lu\r\n", can1_state);
     
-    // 每10秒打印一次详细系统状态
-    if ((current_time - last_status_print) >= 10000) {
-      printf("\r\n=== System Status Report #%lu ===\r\n", heartbeat_counter);
-      CAN_App_PrintStatus();
-      printf("=== End of Status Report ===\r\n\r\n");
-      last_status_print = current_time;
-    }
+    // 打印CAN2状态
+    // uint32_t can2_state = HAL_CAN_GetState(&hcan2);
+    // printf("CAN2 State: %lu\r\n", can2_state);
     
-    // 检查系统运行状态
-    // 这里可以添加系统监控代码
+    // printf("\r\n");
     
-    osDelay(500);  // 减少到500ms周期，提高响应性
+    osDelay(10000);  // 10秒延时
   }
   /* USER CODE END 5 */
 }
@@ -443,8 +425,13 @@ void StartDefaultTask(void *argument)
 void StartCANSendTask(void *argument)
 {
   /* USER CODE BEGIN StartCANSendTask */
-  // 调用CAN发送任务主函数
-  CAN_SendTask_Main(argument);
+  /* CAN1发送任务 - 恢复CAN1发送功能 */
+  /* Infinite loop */
+  for(;;)
+  {
+    CAN_SimpleDemo_Task(argument);  // 恢复CAN1发送消息
+    osDelay(10);  // 正常延时
+  }
   /* USER CODE END StartCANSendTask */
 }
 
@@ -458,8 +445,21 @@ void StartCANSendTask(void *argument)
 void StartCANReceiveTask(void *argument)
 {
   /* USER CODE BEGIN StartCANReceiveTask */
-  // 调用CAN接收任务主函数
-  CAN_ReceiveTask_Main(argument);
+  /* Infinite loop */
+  for(;;)
+  {
+    // 启用CAN2任务以进行状态监控和硬件连接测试
+    CAN2_Demo_Task(argument);  // 重新启用 - 用于状态监控和连接测试
+    // CAN2_Test_Task();          // 保持禁用 - CAN2仅接收
+    
+    osDelay(10);  // 减少延时以确保任务正常运行
+  }
+  
+  /*
+  // MCP2515相关任务代码已注释 - 硬件已移除
+  // Run MCP2515 test demo task directly (it has its own infinite loop)
+  MCP2515_TestDemo_Task(argument);
+  */
   /* USER CODE END StartCANReceiveTask */
 }
 

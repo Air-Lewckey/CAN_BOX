@@ -1,0 +1,8 @@
+../Core/Src/can2_test.c:23:19:CAN2_Test_Init	8	static
+../Core/Src/can2_test.c:38:6:CAN2_Test_QuickTest	24	static
+../Core/Src/can2_test.c:99:6:CAN2_Test_BurstMode	40	static
+../Core/Src/can2_test.c:140:6:CAN2_Test_SendConfig	24	static
+../Core/Src/can2_test.c:163:6:CAN2_Test_ErrorSimulation	24	static
+../Core/Src/can2_test.c:188:6:CAN2_Test_Task	8	static
+../Core/Src/can2_test.c:196:6:CAN2_Test_ComprehensiveTask	16	static
+../Core/Src/can2_test.c:245:6:CAN2_Test_PrintStats	72	static

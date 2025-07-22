@@ -95,6 +95,48 @@ extern "C" {
 #define MCP2515_RXB1DLC     0x75    // 接收缓冲区1数据长度代码
 #define MCP2515_RXB1D0      0x76    // 接收缓冲区1数据字节0
 
+/* 接收过滤器寄存器 (6个过滤器) */
+#define MCP2515_RXF0SIDH    0x00    // 接收过滤器0标准ID高字节
+#define MCP2515_RXF0SIDL    0x01    // 接收过滤器0标准ID低字节
+#define MCP2515_RXF0EID8    0x02    // 接收过滤器0扩展ID高字节
+#define MCP2515_RXF0EID0    0x03    // 接收过滤器0扩展ID低字节
+
+#define MCP2515_RXF1SIDH    0x04    // 接收过滤器1标准ID高字节
+#define MCP2515_RXF1SIDL    0x05    // 接收过滤器1标准ID低字节
+#define MCP2515_RXF1EID8    0x06    // 接收过滤器1扩展ID高字节
+#define MCP2515_RXF1EID0    0x07    // 接收过滤器1扩展ID低字节
+
+#define MCP2515_RXF2SIDH    0x08    // 接收过滤器2标准ID高字节
+#define MCP2515_RXF2SIDL    0x09    // 接收过滤器2标准ID低字节
+#define MCP2515_RXF2EID8    0x0A    // 接收过滤器2扩展ID高字节
+#define MCP2515_RXF2EID0    0x0B    // 接收过滤器2扩展ID低字节
+
+#define MCP2515_RXF3SIDH    0x10    // 接收过滤器3标准ID高字节
+#define MCP2515_RXF3SIDL    0x11    // 接收过滤器3标准ID低字节
+#define MCP2515_RXF3EID8    0x12    // 接收过滤器3扩展ID高字节
+#define MCP2515_RXF3EID0    0x13    // 接收过滤器3扩展ID低字节
+
+#define MCP2515_RXF4SIDH    0x14    // 接收过滤器4标准ID高字节
+#define MCP2515_RXF4SIDL    0x15    // 接收过滤器4标准ID低字节
+#define MCP2515_RXF4EID8    0x16    // 接收过滤器4扩展ID高字节
+#define MCP2515_RXF4EID0    0x17    // 接收过滤器4扩展ID低字节
+
+#define MCP2515_RXF5SIDH    0x18    // 接收过滤器5标准ID高字节
+#define MCP2515_RXF5SIDL    0x19    // 接收过滤器5标准ID低字节
+#define MCP2515_RXF5EID8    0x1A    // 接收过滤器5扩展ID高字节
+#define MCP2515_RXF5EID0    0x1B    // 接收过滤器5扩展ID低字节
+
+/* 接收掩码寄存器 (2个掩码) */
+#define MCP2515_RXM0SIDH    0x20    // 接收掩码0标准ID高字节
+#define MCP2515_RXM0SIDL    0x21    // 接收掩码0标准ID低字节
+#define MCP2515_RXM0EID8    0x22    // 接收掩码0扩展ID高字节
+#define MCP2515_RXM0EID0    0x23    // 接收掩码0扩展ID低字节
+
+#define MCP2515_RXM1SIDH    0x24    // 接收掩码1标准ID高字节
+#define MCP2515_RXM1SIDL    0x25    // 接收掩码1标准ID低字节
+#define MCP2515_RXM1EID8    0x26    // 接收掩码1扩展ID高字节
+#define MCP2515_RXM1EID0    0x27    // 接收掩码1扩展ID低字节
+
 /* MCP2515 SPI指令定义 --------------------------------------------------------*/
 #define MCP2515_CMD_RESET       0xC0    // 复位指令
 #define MCP2515_CMD_READ        0x03    // 读寄存器指令
@@ -136,6 +178,10 @@ extern "C" {
 #define MCP2515_ERROR           1       // 操作失败
 #define MCP2515_TIMEOUT         2       // 操作超时
 
+/* 超时定义 ------------------------------------------------------------------*/
+#define MCP2515_SPI_TIMEOUT     100     // SPI通信超时时间(ms)
+#define MCP2515_MODE_TIMEOUT    100     // 模式切换超时时间(ms)
+
 /* CAN消息结构体定义 ---------------------------------------------------------*/
 typedef struct {
     uint32_t id;                        // CAN ID (11位标准ID或29位扩展ID)
@@ -159,6 +205,7 @@ void MCP2515_CS_High(void);
 uint8_t MCP2515_ReadRegister(uint8_t address);
 void MCP2515_WriteRegister(uint8_t address, uint8_t data);
 void MCP2515_ModifyRegister(uint8_t address, uint8_t mask, uint8_t data);
+void MCP2515_BitModify(uint8_t address, uint8_t mask, uint8_t data);
 void MCP2515_ReadMultipleRegisters(uint8_t address, uint8_t *buffer, uint8_t length);
 void MCP2515_WriteMultipleRegisters(uint8_t address, uint8_t *buffer, uint8_t length);
 
@@ -167,6 +214,7 @@ void MCP2515_Reset(void);
 uint8_t MCP2515_SetMode(uint8_t mode);
 uint8_t MCP2515_GetMode(void);
 uint8_t MCP2515_SetBaudRate(uint8_t baudrate);
+uint8_t MCP2515_WaitForMode(uint8_t mode, uint32_t timeout);
 
 /* 初始化和配置函数 */
 uint8_t MCP2515_Init(uint8_t baudrate);
@@ -182,8 +230,10 @@ uint8_t MCP2515_CheckTransmit(void);
 
 /* 中断处理函数 */
 uint8_t MCP2515_GetInterruptFlags(void);
+uint8_t MCP2515_GetInterruptFlags_Debug(void);
 void MCP2515_ClearInterruptFlags(uint8_t flags);
 void MCP2515_IRQHandler(void);
+uint8_t MCP2515_ProcessPendingInterrupt(void);
 
 /* 状态查询函数 */
 uint8_t MCP2515_GetStatus(void);
@@ -191,6 +241,9 @@ uint8_t MCP2515_GetErrorFlags(void);
 void MCP2515_ClearErrorFlags(void);
 
 /* 调试和测试函数 */
+void MCP2515_SetFilterForAll(void);        // 配置过滤器接收所有消息
+void MCP2515_ModeNormal(void);             // 确保处于正常工作模式
+void MCP2515_Test500KConfigs(void);        // 测试不同波特率配置
 uint8_t MCP2515_SelfTest(void);
 uint8_t MCP2515_HardwareTest(void);
 void MCP2515_PrintStatus(void);
@@ -205,6 +258,8 @@ uint8_t MCP2515_LoopbackTest(void);
 void CAN_DiagnoseAndFix(void);
 void MCP2515_CANOETest(void);
 void MCP2515_InitFailureDiagnosis(void);
+void MCP2515_HardwareDiagnosis(void);
+void MCP2515_VerifyInitialization(void);
 #ifdef __cplusplus
 }
 #endif

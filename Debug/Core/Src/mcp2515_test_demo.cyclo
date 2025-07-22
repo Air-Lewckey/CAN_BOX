@@ -1,0 +1,9 @@
+../Core/Src/mcp2515_test_demo.c:48:19:MCP2515_TestDemo_Init	4
+../Core/Src/mcp2515_test_demo.c:95:6:MCP2515_TestDemo_Task	8
+../Core/Src/mcp2515_test_demo.c:156:27:MCP2515_TestDemo_GetStats	1
+../Core/Src/mcp2515_test_demo.c:166:6:MCP2515_TestDemo_RunDiagnostic	1
+../Core/Src/mcp2515_test_demo.c:178:13:MCP2515_ProcessReceivedMessage	2
+../Core/Src/mcp2515_test_demo.c:203:13:MCP2515_PrintMessageDetails	9
+../Core/Src/mcp2515_test_demo.c:241:13:MCP2515_PrintStatistics	3
+../Core/Src/mcp2515_test_demo.c:269:20:MCP2515_GetMessageTypeName	9
+../Core/Src/mcp2515_test_demo.c:289:6:MCP2515_RunReceptionDiagnostic	31

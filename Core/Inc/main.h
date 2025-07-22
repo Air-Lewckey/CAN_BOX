@@ -31,7 +31,7 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "can_dual_node.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -54,14 +54,10 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 extern UART_HandleTypeDef huart2;
+extern CAN_HandleTypeDef hcan1;
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define MCP2515_INT_Pin GPIO_PIN_10
-#define MCP2515_INT_GPIO_Port GPIOB
-#define MCP2515_INT_EXTI_IRQn EXTI15_10_IRQn
-#define MCP2515_CS_Pin GPIO_PIN_12
-#define MCP2515_CS_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

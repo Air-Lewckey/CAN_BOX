@@ -1,0 +1,6 @@
+../Core/Src/can2_loopback_test.c:40:19:CAN2_LoopbackTest_Init	5
+../Core/Src/can2_loopback_test.c:106:6:CAN2_LoopbackTest_Task	3
+../Core/Src/can2_loopback_test.c:148:19:CAN2_LoopbackTest_SendMessage	2
+../Core/Src/can2_loopback_test.c:181:6:CAN2_LoopbackTest_ProcessMessage	5
+../Core/Src/can2_loopback_test.c:205:6:CAN2_LoopbackTest_PrintStats	2
+../Core/Src/can2_loopback_test.c:220:19:CAN2_LoopbackTest_RestoreNormalMode	2
