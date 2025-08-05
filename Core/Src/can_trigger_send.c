@@ -54,7 +54,7 @@ HAL_StatusTypeDef CAN_TriggerSend_Init(void)
         return HAL_ERROR;
     }
     
-    printf("[CAN-TRIGGER] Init success! Send '1', '2', '3' to trigger CAN messages\r\n");
+    // printf("[CAN-TRIGGER] Init success! Send '1', '2', '3' to trigger CAN messages\r\n");  // 已删除
     
     return HAL_OK;
 }

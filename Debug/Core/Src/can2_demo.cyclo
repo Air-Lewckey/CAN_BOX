@@ -1,7 +1,0 @@
-../Drivers/CMSIS/Include/core_cm4.h:1703:26:__NVIC_GetEnableIRQ	2
-../Core/Src/can2_demo.c:38:19:CAN2_Demo_Init	5
-../Core/Src/can2_demo.c:114:6:CAN2_Demo_Task	1
-../Core/Src/can2_demo.c:136:6:CAN2_Demo_GetStats	2
-../Core/Src/can2_demo.c:150:19:CAN2_Demo_SendMessage	1
-../Core/Src/can2_demo.c:231:6:CAN2_Demo_ProcessReceivedMessage	2
-../Core/Src/can2_demo.c:252:6:CAN2_Demo_RunDiagnostic	1

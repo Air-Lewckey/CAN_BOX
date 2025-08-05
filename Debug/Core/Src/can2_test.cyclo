@@ -1,8 +1,0 @@
-../Core/Src/can2_test.c:23:19:CAN2_Test_Init	1
-../Core/Src/can2_test.c:38:6:CAN2_Test_QuickTest	4
-../Core/Src/can2_test.c:99:6:CAN2_Test_BurstMode	3
-../Core/Src/can2_test.c:140:6:CAN2_Test_SendConfig	2
-../Core/Src/can2_test.c:163:6:CAN2_Test_ErrorSimulation	2
-../Core/Src/can2_test.c:188:6:CAN2_Test_Task	1
-../Core/Src/can2_test.c:196:6:CAN2_Test_ComprehensiveTask	7
-../Core/Src/can2_test.c:245:6:CAN2_Test_PrintStats	1

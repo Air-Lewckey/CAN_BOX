@@ -1,9 +1,0 @@
-../Core/Src/can_loop_test.c:59:19:CAN_LoopTest_Init	1
-../Core/Src/can_loop_test.c:85:6:CAN_LoopTest_Task	11
-../Core/Src/can_loop_test.c:169:6:CAN_LoopTest_ProcessSTM32Message	3
-../Core/Src/can_loop_test.c:199:6:CAN_LoopTest_ProcessMCP2515Message	3
-../Core/Src/can_loop_test.c:233:26:CAN_SendLoopMessage_STM32	4
-../Core/Src/can_loop_test.c:279:26:CAN_SendLoopMessage_MCP2515	2
-../Core/Src/can_loop_test.c:307:13:CAN_PrintLoopStats	2
-../Core/Src/can_loop_test.c:329:6:CAN_LoopTest_GetStats	3
-../Core/Src/can_loop_test.c:347:6:CAN_LoopTest_ResetStats	1

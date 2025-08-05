@@ -1,4 +1,0 @@
-../Core/Src/can_diagnosis_test.c:45:6:CAN_Diagnosis_RunTest	2
-../Core/Src/can_diagnosis_test.c:72:6:CAN_Diagnosis_QuickTest	1
-../Core/Src/can_diagnosis_test.c:93:13:CAN_Diagnosis_PrintResults	13
-../Core/Src/can_diagnosis_test.c:213:13:CAN_Diagnosis_PrintRecommendations	3

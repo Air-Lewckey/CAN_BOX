@@ -142,7 +142,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   // Initialize CAN1 Dual Node (接收功能)
   if (CAN_DualNode_Init() == HAL_OK) {
-    printf("[CAN1] Dual Node initialized - Ready to receive CAN messages\r\n");
+    // printf("[CAN1] Dual Node initialized - Ready to receive CAN messages\r\n");  // 已删除
   } else {
     printf("[CAN1] Dual Node initialization failed!\r\n");
     Error_Handler();
@@ -150,7 +150,7 @@ int main(void)
   
   // Initialize CAN1 Trigger Send Module
   if (CAN_TriggerSend_Init() == HAL_OK) {
-    printf("[CAN1] Trigger Send initialized - Send '1', '2', '3' to trigger messages\r\n");
+    // printf("[CAN1] Trigger Send initialized - Send '1', '2', '3' to trigger messages\r\n");  // 已删除
   } else {
     printf("[CAN1] Trigger send initialization failed!\r\n");
     Error_Handler();

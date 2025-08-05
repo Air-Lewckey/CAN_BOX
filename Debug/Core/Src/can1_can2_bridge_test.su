@@ -1,6 +1,0 @@
-../Core/Src/can1_can2_bridge_test.c:41:19:CAN1_CAN2_BridgeTest_Init	56	static
-../Core/Src/can1_can2_bridge_test.c:153:6:CAN1_CAN2_BridgeTest_Task	32	static
-../Core/Src/can1_can2_bridge_test.c:204:19:CAN1_CAN2_BridgeTest_SendFromCAN2	64	static
-../Core/Src/can1_can2_bridge_test.c:237:6:CAN1_CAN2_BridgeTest_ProcessCAN1Reception	24	static
-../Core/Src/can1_can2_bridge_test.c:264:6:CAN1_CAN2_BridgeTest_PrintStats	16	static
-../Core/Src/can1_can2_bridge_test.c:292:6:CAN1_CAN2_BridgeTest_GetStats	24	static

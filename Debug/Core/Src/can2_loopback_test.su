@@ -1,6 +1,0 @@
-../Core/Src/can2_loopback_test.c:40:19:CAN2_LoopbackTest_Init	56	static
-../Core/Src/can2_loopback_test.c:106:6:CAN2_LoopbackTest_Task	32	static
-../Core/Src/can2_loopback_test.c:148:19:CAN2_LoopbackTest_SendMessage	56	static
-../Core/Src/can2_loopback_test.c:181:6:CAN2_LoopbackTest_ProcessMessage	24	static
-../Core/Src/can2_loopback_test.c:205:6:CAN2_LoopbackTest_PrintStats	8	static
-../Core/Src/can2_loopback_test.c:220:19:CAN2_LoopbackTest_RestoreNormalMode	16	static

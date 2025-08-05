@@ -1,9 +1,0 @@
-../Core/Src/can_bus_diagnosis.c:54:22:CAN_Bus_PerformDiagnosis	2
-../Core/Src/can_bus_diagnosis.c:98:9:CAN_Bus_QuickCheck	4
-../Core/Src/can_bus_diagnosis.c:141:13:CAN_Bus_TestConnectivity	6
-../Core/Src/can_bus_diagnosis.c:211:13:CAN_Bus_TestTermination	5
-../Core/Src/can_bus_diagnosis.c:260:13:CAN_Bus_AnalyzeBusLoad	7
-../Core/Src/can_bus_diagnosis.c:309:13:CAN_Bus_CheckElectricalLevels	4
-../Core/Src/can_bus_diagnosis.c:364:13:CAN_Bus_GenerateReport	14
-../Core/Src/can_bus_diagnosis.c:460:22:CAN_Bus_GetDiagnosisResult	1
-../Core/Src/can_bus_diagnosis.c:470:6:CAN_Bus_ResetDiagnosis	1

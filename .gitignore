@@ -1,0 +1,48 @@
+# STM32CubeIDE编译生成文件
+Debug/
+Release/
+
+# Eclipse项目文件
+.metadata/
+.settings/
+
+# 编译生成的文件
+*.o
+*.elf
+*.bin
+*.hex
+*.map
+*.list
+*.su
+*.cyclo
+*.d
+
+# 临时文件
+*.tmp
+*.temp
+*.log
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# IDE配置文件（保留项目配置）
+# .cproject
+# .project
+# .mxproject
+
+# 用户特定配置
+*.launch
+
+# 备份文件
+*~
+*.bak
+*.orig
+
+# 压缩文件
+*.zip
+*.rar
+*.7z
+
+# 文档临时文件
+~$*

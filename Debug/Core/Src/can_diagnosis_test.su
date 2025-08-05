@@ -1,4 +1,0 @@
-../Core/Src/can_diagnosis_test.c:45:6:CAN_Diagnosis_RunTest	16	static
-../Core/Src/can_diagnosis_test.c:72:6:CAN_Diagnosis_QuickTest	16	static
-../Core/Src/can_diagnosis_test.c:93:13:CAN_Diagnosis_PrintResults	16	static
-../Core/Src/can_diagnosis_test.c:213:13:CAN_Diagnosis_PrintRecommendations	16	static
