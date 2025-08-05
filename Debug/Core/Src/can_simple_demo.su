@@ -1,8 +1,8 @@
 ../Core/Src/can_simple_demo.c:73:19:CAN_SimpleDemo_Init	48	static
 ../Core/Src/can_simple_demo.c:139:6:CAN_SimpleDemo_Task	24	static
 ../Core/Src/can_simple_demo.c:208:6:CAN_SimpleDemo_GetStats	16	static
-../Core/Src/can_simple_demo.c:227:26:CAN_Demo_SendHeartbeat	48	static
-../Core/Src/can_simple_demo.c:258:26:CAN_Demo_SendDataMessage	48	static
-../Core/Src/can_simple_demo.c:288:26:CAN_Demo_SendStatusMessage	48	static
-../Core/Src/can_simple_demo.c:318:26:CAN_Demo_SendControlMessage	48	static
-../Core/Src/can_simple_demo.c:348:26:CAN_Demo_SendDebugMessage	48	static
+../Core/Src/can_simple_demo.c:227:26:CAN_Demo_SendHeartbeat	56	static
+../Core/Src/can_simple_demo.c:269:26:CAN_Demo_SendDataMessage	56	static
+../Core/Src/can_simple_demo.c:310:26:CAN_Demo_SendStatusMessage	56	static
+../Core/Src/can_simple_demo.c:351:26:CAN_Demo_SendControlMessage	48	static
+../Core/Src/can_simple_demo.c:381:26:CAN_Demo_SendDebugMessage	48	static

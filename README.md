@@ -1,12 +1,15 @@
-# STM32F407 + MCP2515 CAN通信系统
+# STM32F407 CAN通信系统
 
 ## 项目简介
 
-本项目是基于STM32F407微控制器和MCP2515 CAN控制器的双CAN节点通信系统。系统采用FreeRTOS实时操作系统，实现了完整的CAN通信功能，包括消息发送、接收、处理和状态监控。
+本项目是基于STM32F407ZGT6微控制器的CAN通信系统，集成了多种CAN通信功能模块。系统主要使用STM32F407内置的CAN1控制器，实现了完整的CAN总线通信功能，包括双节点通信、触发式发送、消息接收处理和状态监控等功能。
 
 ### 主要特性
 
-- **双CAN节点架构**：支持STM32F407内置CAN控制器和MCP2515外部CAN控制器
+- **多功能CAN通信架构**：基于STM32F407内置CAN1控制器
+- **双节点通信模块**：支持与WCMCU-230模块的双向通信
+- **触发式发送功能**：通过串口命令触发CAN消息发送
+- **CAN2静默监听**：CAN2工作在静默模式，纯监听总线消息
 - **多任务设计**：基于FreeRTOS的多任务并发处理
 - **完整的CAN协议栈**：从底层驱动到应用层的完整实现
 - **智能诊断功能**：自动检测和修复常见CAN通信问题
@@ -17,33 +20,95 @@
 
 ### 硬件架构
 
+#### 核心硬件组件
+
+1. **STM32F407ZGT6微控制器**
+   - ARM Cortex-M4内核，168MHz主频
+   - 内置双CAN控制器（CAN1/CAN2）
+   - 丰富的外设接口
+
+2. **CAN收发器模块**
+   - SN65HVD230或WCMCU-230模块
+   - 提供CAN总线物理层接口
+   - 支持标准CAN 2.0B协议
+
+3. **调试接口**
+   - USART2用于串口调试和命令输入
+   - ST-Link调试器接口
+
+#### 引脚连接
+
+##### STM32F407 CAN1引脚（主要通信）
+- **CAN1_TX**: PA12
+- **CAN1_RX**: PA11
+
+##### STM32F407 CAN2引脚（静默监听）
+- **CAN2_TX**: PB13（未使用）
+- **CAN2_RX**: PB12
+
+##### 串口调试接口
+- **USART2_TX**: PA2
+- **USART2_RX**: PA3
+
+##### 预留SPI接口（用于MCP2515扩展）
+- **SPI1_SCK**: PA5
+- **SPI1_MISO**: PA6
+- **SPI1_MOSI**: PA7
+- **CS**: PA4
+- **INT**: PA3
+
 ```
 STM32F407开发板
 ├── 内置CAN控制器 (CAN1)
 │   └── 连接到WCMCU-230模块
-├── SPI1接口
-│   └── 连接到MCP2515 CAN控制器
+├── 内置CAN控制器 (CAN2)
+│   └── 静默监听模式
 ├── USART2
 │   └── 调试串口输出
 └── GPIO
-    ├── MCP2515_CS (片选)
-    ├── MCP2515_INT (中断)
-    └── LED指示灯
+    ├── LED指示灯
+    └── 预留SPI接口
 ```
 
 ### 软件架构
 
+#### 模块组织
+
+```
+CAN通信系统
+├── CAN双节点通信模块 (can_dual_node.c)
+│   ├── 与WCMCU-230模块通信
+│   ├── 心跳、数据、状态消息处理
+│   └── 节点状态监控
+├── CAN触发发送模块 (can_trigger_send.c)
+│   ├── 串口命令触发
+│   ├── 三种消息类型发送
+│   └── UART中断处理
+├── CAN2静默监听模块 (can2_demo.c)
+│   ├── 静默模式监听
+│   ├── 消息统计
+│   └── 总线诊断
+├── 扩展功能模块
+│   ├── CAN总线诊断 (can_bus_diagnosis.c)
+│   ├── 环回测试 (can_loop_test.c)
+│   └── 桥接测试 (can1_can2_bridge_test.c)
+└── 系统服务模块
+    ├── FreeRTOS任务管理
+    ├── 消息队列
+    └── 串口调试输出
+```
+
 项目采用分层设计，主要包含以下模块：
 
 #### 1. 驱动层 (Driver Layer)
-- **mcp2515.c/h**: MCP2515 CAN控制器底层驱动
 - **can.c/h**: STM32内置CAN控制器驱动
 - **usart.c/h**: 串口通信驱动
-- **spi.c/h**: SPI通信驱动
+- **gpio.c/h**: GPIO控制驱动
 
 #### 2. 应用层 (Application Layer)
-- **can_app.c/h**: MCP2515 CAN应用层封装
 - **can_dual_node.c/h**: 双CAN节点通信管理
+- **can_trigger_send.c/h**: 触发式CAN消息发送
+- **can2_demo.c/h**: CAN2静默监听功能
 - **main.c**: 主程序和任务调度
 
 #### 3. 系统层 (System Layer)
@@ -53,151 +118,134 @@ STM32F407开发板
 
 ## 核心功能模块
 
-### 1. MCP2515驱动模块 (mcp2515.c)
+### 1. CAN双节点通信模块 (can_dual_node.c)
 
 #### 主要功能
-- SPI底层通信
-- 寄存器读写操作
-- CAN控制器初始化和配置
-- CAN消息发送和接收
-- 中断处理和状态查询
-- 错误处理和调试功能
+- 与WCMCU-230模块的双向CAN通信
+- 支持心跳、数据请求/响应、状态和控制消息
+- 节点状态监控和超时检测
+- 通信统计和错误处理
+- 消息校验和完整性检查
 
 #### 核心函数详解
 
 ##### 初始化函数
 ```c
-MCP2515_Result_t MCP2515_Init(MCP2515_Baudrate_t baudrate)
+HAL_StatusTypeDef CAN_DualNode_Init(void)
 ```
-**功能**: 初始化MCP2515控制器
-**参数**: 
-- `baudrate`: CAN总线波特率 (125K/250K/500K/1M)
-**返回值**: MCP2515_OK表示成功
+**功能**: 初始化双CAN节点通信
+**返回值**: HAL_OK表示成功
 **实现逻辑**:
-1. 复位MCP2515芯片
-2. 设置配置模式
-3. 配置波特率参数
-4. 设置接收过滤器
-5. 切换到正常工作模式
+1. 配置CAN过滤器
+2. 启动CAN控制器
+3. 激活接收中断
+4. 激活发送完成中断
+5. 激活错误中断
+6. 初始化统计信息
 
 ##### 消息发送函数
 ```c
-MCP2515_Result_t MCP2515_SendMessage(MCP2515_CANMessage_t *message)
+HAL_StatusTypeDef CAN_SendToWCMCU(uint32_t id, uint8_t* data, uint8_t len)
+HAL_StatusTypeDef CAN_SendHeartbeat(void)
+HAL_StatusTypeDef CAN_SendDataRequest(uint8_t req_type, uint8_t req_param)
+HAL_StatusTypeDef CAN_SendStatusMessage(void)
 ```
-**功能**: 发送CAN消息
-**参数**: 
-- `message`: 指向CAN消息结构体的指针
-**返回值**: MCP2515_OK表示发送成功
-**实现逻辑**:
-1. 检查发送缓冲区状态
-2. 选择可用的发送缓冲区
-3. 加载消息数据到缓冲区
-4. 启动发送请求
-5. 等待发送完成
-
-##### 消息接收函数
-```c
-MCP2515_Result_t MCP2515_ReceiveMessage(MCP2515_CANMessage_t *message)
-```
-**功能**: 接收CAN消息
-**参数**: 
-- `message`: 用于存储接收消息的结构体指针
-**返回值**: MCP2515_OK表示接收成功
-**实现逻辑**:
-1. 检查接收缓冲区状态
-2. 读取接收缓冲区数据
-3. 解析消息头和数据
-4. 清除接收标志
-
-##### 过滤器设置函数
-```c
-MCP2515_Result_t MCP2515_SetFilter(uint8_t filter_num, uint32_t filter_id, uint8_t extended)
-MCP2515_Result_t MCP2515_SetMask(uint8_t mask_num, uint32_t mask_value, uint8_t extended)
-```
-**功能**: 设置接收过滤器和掩码
-**参数**: 
-- `filter_num/mask_num`: 过滤器/掩码编号 (0-5)
-- `filter_id/mask_value`: 过滤器ID/掩码值
-- `extended`: 是否为扩展帧
-**实现逻辑**:
-1. 切换到配置模式
-2. 写入过滤器/掩码寄存器
-3. 恢复工作模式
-
-### 2. CAN应用层模块 (can_app.c)
-
-#### 主要功能
-- 基于MCP2515的CAN通信应用层封装
-- 多任务CAN消息处理
-- 消息队列管理
-- 统计信息收集
-- 应用层消息协议
-
-#### 核心函数详解
-
-##### 应用初始化函数
-```c
-uint8_t CAN_App_Init(void)
-```
-**功能**: 初始化CAN应用层
-**返回值**: CAN_APP_OK表示成功
-**实现逻辑**:
-1. 初始化MCP2515硬件
-2. 配置接收过滤器
-3. 设置默认参数
-4. 初始化统计计数器
-
-##### 发送任务主函数
-```c
-void CAN_SendTask_Main(void *argument)
-```
-**功能**: CAN发送任务的主循环
-**实现逻辑**:
-1. 周期性发送心跳消息 (1秒间隔)
-2. 周期性发送测试数据 (2秒间隔)
-3. 周期性发送状态消息 (5秒间隔)
-4. 周期性发送传感器数据 (3秒间隔)
-5. 周期性发送控制指令 (10秒间隔)
-6. 处理来自队列的发送请求
-
-##### 接收任务主函数
-```c
-void CAN_ReceiveTask_Main(void *argument)
-```
-**功能**: CAN接收任务的主循环
-**实现逻辑**:
-1. 检查MCP2515接收状态
-2. 接收并解析CAN消息
-3. 根据消息类型进行处理
-4. 更新统计信息
-5. 输出调试信息
+**功能**: 发送不同类型的CAN消息
+**消息格式**:
+- **心跳消息**: 魔数(2字节) + 计数器(2字节)
+- **数据请求**: 请求类型(1字节) + 请求参数(1字节)
+- **状态消息**: 魔数(2字节) + 状态(1字节) + 计数器(2字节) + 时间戳(1字节)
 
 ##### 消息处理函数
 ```c
-static void CAN_ProcessReceivedMessage_App(MCP2515_CANMessage_t *message)
+void CAN_ProcessReceivedMessage(CAN_RxHeaderTypeDef* header, uint8_t* data)
+CAN_MessageType_t CAN_GetMessageType(uint32_t id)
+void CAN_ProcessHeartbeat(uint8_t* data, uint8_t len)
+void CAN_ProcessDataRequest(uint8_t* data, uint8_t len)
 ```
-**功能**: 处理接收到的CAN消息
-**支持的消息类型**:
-- **心跳消息** (ID: 0x100): 包含发送计数器信息
-- **数据消息** (ID: 0x200): 包含测试数据和计数器
-- **状态消息** (ID: 0x300): 包含系统状态和错误标志
-- **传感器消息** (ID: 0x400): 包含传感器数值和类型
-- **控制消息** (ID: 0x500): 包含控制指令和参数
+**功能**: 处理接收到的不同类型消息
+**实现逻辑**:
+1. 根据消息ID确定消息类型
+2. 验证消息格式和魔数
+3. 解析消息内容
+4. 执行相应的处理逻辑
+5. 更新节点状态和统计信息
 
-##### 应用接口函数
+### 2. CAN触发发送模块 (can_trigger_send.c)
+
+#### 主要功能
+- 通过串口命令触发CAN消息发送
+- 支持三种不同ID的消息类型
+- UART中断接收处理
+- 替代周期性发送方式
+
+#### 核心函数详解
+
+##### 初始化函数
 ```c
-uint8_t CAN_App_SendMessage(uint32_t id, uint8_t *data, uint8_t length, uint8_t extended)
-uint8_t CAN_App_SendRemoteFrame(uint32_t id, uint8_t dlc, uint8_t extended)
-uint8_t CAN_App_SetFilter(uint32_t filter_id, uint32_t mask, uint8_t extended)
+HAL_StatusTypeDef CAN_TriggerSend_Init(void)
 ```
-**功能**: 提供给用户的应用层接口
-**特点**: 
-- 参数检查和错误处理
-- 队列方式的异步发送
-- 统计信息自动更新
-- 调试信息输出
+**功能**: 初始化触发发送功能
+**实现逻辑**:
+1. 配置UART接收中断
+2. 初始化CAN控制器
+3. 设置消息模板
+4. 启动接收监听
 
-### 3. 双节点通信模块 (can_dual_node.c)
+##### 消息发送函数
+```c
+HAL_StatusTypeDef CAN_TriggerSend_SendMessage1(void)  // ID: 0x100
+HAL_StatusTypeDef CAN_TriggerSend_SendMessage2(void)  // ID: 0x200
+HAL_StatusTypeDef CAN_TriggerSend_SendMessage3(void)  // ID: 0x300
+```
+**功能**: 发送预定义的三种消息类型
+**触发方式**: 通过串口发送字符'1'、'2'、'3'触发对应消息
+
+##### 中断回调函数
+```c
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+```
+**功能**: UART接收完成中断回调
+**实现逻辑**:
+1. 检查接收到的字符
+2. 根据字符选择消息类型
+3. 调用对应的发送函数
+4. 重新启动接收
+
+### 3. CAN2静默监听模块 (can2_demo.c)
+
+#### 主要功能
+- CAN2工作在静默模式，纯监听总线消息
+- 消息统计和分析
+- 总线流量监控
+- 错误检测和报告
+
+#### 核心函数详解
+
+##### 初始化函数
+```c
+HAL_StatusTypeDef CAN2_Demo_Init(void)
+```
+**功能**: 初始化CAN2静默监听
+**实现逻辑**:
+1. 配置CAN2为静默模式
+2. 设置接收过滤器
+3. 启动接收中断
+4. 初始化统计计数器
+
+##### 消息监听函数
+```c
+void CAN2_ProcessReceivedMessage(CAN_RxHeaderTypeDef* header, uint8_t* data)
+void CAN2_UpdateStatistics(uint32_t id, uint8_t dlc)
+```
+**功能**: 处理监听到的CAN消息
+**统计信息**:
+- 总消息数量
+- 不同ID的消息计数
+- 数据长度分布
+- 错误帧统计
+
+### 4. 双节点通信模块 (can_dual_node.c)
 
 #### 主要功能
 - STM32内置CAN控制器与WCMCU-230模块通信
@@ -290,7 +338,27 @@ typedef struct {
 
 ## 消息协议定义
 
-### 消息ID分配
+### 双节点通信消息ID分配
+
+| 消息类型 | 消息ID | 方向 | 描述 | 数据长度 |
+|---------|--------|------|------|----------|
+| 心跳消息 | 0x101 | STM32→WCMCU | 节点存活检测 | 4字节 |
+| 心跳响应 | 0x201 | WCMCU→STM32 | 心跳确认 | 4字节 |
+| 数据请求 | 0x102 | STM32→WCMCU | 请求数据 | 2字节 |
+| 数据响应 | 0x202 | WCMCU→STM32 | 数据传输 | 1-8字节 |
+| 状态消息 | 0x103 | STM32→WCMCU | 状态信息 | 6字节 |
+| 状态响应 | 0x203 | WCMCU→STM32 | 状态确认 | 可变 |
+| 控制指令 | 0x104 | STM32→WCMCU | 控制命令 | 4字节 |
+| 错误消息 | 0x7FF | 双向 | 错误报告 | 2字节 |
+
+### 触发发送消息ID分配
+
+| 触发字符 | 消息ID | 描述 | 数据内容 |
+|----------|--------|------|----------|
+| '1' | 0x100 | 测试消息1 | 计数器+时间戳 |
+| '2' | 0x200 | 测试消息2 | 传感器数据模拟 |
+| '3' | 0x300 | 测试消息3 | 状态信息 |
+
 ```c
 #define CAN_HEARTBEAT_ID        0x100  // 心跳消息
 #define CAN_DATA_ID             0x200  // 数据消息
@@ -305,14 +373,59 @@ typedef struct {
 #define CAN_STATUS_ID           0x603  // 状态消息
 ```
 
-### 消息格式
+### 消息格式详细定义
 
-#### 心跳消息 (0x100)
+#### 双节点通信消息格式
+
+##### 心跳消息 (0x101)
 | 字节 | 描述 | 值 |
-|------|------|----|
+|------|------|----|----|
 | 0-1  | 魔数 | 0xAA55 |
-| 2-5  | 发送计数器 | 32位计数值 |
-| 6-7  | 保留 | 0x00 |
+| 2-3  | 发送计数器 | 16位计数值 |
+
+##### 数据请求消息 (0x102)
+| 字节 | 描述 | 值 |
+|------|------|----|----|
+| 0    | 请求类型 | 1=传感器, 2=状态, 3=配置 |
+| 1    | 请求参数 | 具体参数ID |
+
+##### 状态消息 (0x103)
+| 字节 | 描述 | 值 |
+|------|------|----|----|
+| 0-1  | 魔数 | 0xBBCC |
+| 2    | 状态标志 | bit0=运行, bit1=错误, bit2=警告 |
+| 3-4  | 状态计数器 | 16位计数值 |
+| 5    | 时间戳 | 秒的低8位 |
+
+##### 控制指令消息 (0x104)
+| 字节 | 描述 | 值 |
+|------|------|----|----|
+| 0-1  | 控制命令 | 1=启动, 2=停止, 3=复位, 4=配置 |
+| 2-3  | 命令参数 | 具体参数值 |
+
+#### 触发发送消息格式
+
+##### 测试消息1 (0x100) - 触发字符'1'
+| 字节 | 描述 | 值 |
+|------|------|----|----|
+| 0-3  | 发送计数器 | 32位计数值 |
+| 4-7  | 时间戳 | 32位毫秒时间戳 |
+
+##### 测试消息2 (0x200) - 触发字符'2'
+| 字节 | 描述 | 值 |
+|------|------|----|----|
+| 0-1  | 传感器ID | 16位传感器标识 |
+| 2-3  | 传感器数值 | 16位数据值 |
+| 4    | 传感器状态 | 状态标志 |
+| 5-7  | 保留字节 | 0x00 |
+
+##### 测试消息3 (0x300) - 触发字符'3'
+| 字节 | 描述 | 值 |
+|------|------|----|----|
+| 0    | 系统状态 | 系统运行状态 |
+| 1    | 错误代码 | 错误类型代码 |
+| 2-3  | 运行时间 | 分钟为单位 |
+| 4-7  | 保留字节 | 0x00 |
 
 #### 数据消息 (0x200)
 | 字节 | 描述 | 值 |
@@ -336,24 +449,37 @@ typedef struct {
 
 | 任务名称 | 优先级 | 堆栈大小 | 功能描述 |
 |----------|--------|----------|----------|
-| defaultTask | osPriorityNormal | 128 words | 系统心跳监测 |
-| CANSendTask | osPriorityNormal | 128 words | CAN消息发送 |
-| CANReceiveTask | osPriorityAboveNormal | 128 words | CAN消息接收 |
+| defaultTask | osPriorityNormal | 128 words | 系统默认任务，LED闪烁 |
+| CANSendTask | osPriorityNormal | 512 words | CAN消息发送任务 |
+| CANReceiveTask | osPriorityNormal | 512 words | CAN消息接收任务 |
 
 ### 消息队列配置
 
 | 队列名称 | 大小 | 元素类型 | 功能描述 |
 |----------|------|----------|----------|
-| myQueue01 | 16 | CAN_QueueMessage_t | CAN发送消息队列 |
+| myQueue01 | 16 | uint16_t | CAN消息队列 |
+
+### 当前启用的功能模块
+
+- ✅ **CAN1双节点通信**: 与WCMCU-230模块通信
+- ✅ **CAN触发发送**: 串口命令触发消息发送
+- ✅ **CAN2静默监听**: 监听总线消息
+- ❌ **CAN2发送功能**: 已禁用
+- ❌ **MCP2515模块**: 预留接口，未启用
+- ❌ **CAN1-CAN2桥接**: 已禁用
 
 ## 编译和使用
 
 ### 开发环境要求
-- STM32CubeIDE 1.8.0或更高版本
-- STM32F4xx HAL库
-- FreeRTOS
-- 正点原子STM32F407开发板
-- MCP2515 CAN控制器模块
+- **STM32CubeIDE**: 1.8.0或更高版本
+- **STM32CubeMX**: 6.0或更高版本（用于配置修改）
+- **STM32F4xx HAL库**: 集成在CubeIDE中
+- **FreeRTOS**: V10.3.1或更高版本
+- **ARM GCC工具链**: 集成在STM32CubeIDE中
+- **调试器**: ST-Link V2/V3
+- **操作系统**: Windows 10/11, Linux, macOS
+- **硬件平台**: 正点原子STM32F407开发板
+- **CAN模块**: WCMCU-230或兼容的CAN收发器模块
 
 ### 硬件连接
 
@@ -446,11 +572,41 @@ build_project.bat
 ```
 
 #### 手动编译
-1. 打开STM32CubeIDE
-2. 导入项目工程
-3. 检查硬件配置
-4. 编译项目
-5. 下载到开发板
+1. **导入项目**
+   - 打开STM32CubeIDE
+   - 选择 `File -> Import -> Existing Projects into Workspace`
+   - 浏览并选择项目文件夹
+   - 点击 `Finish` 完成导入
+
+2. **项目配置检查**
+   - **目标芯片**: STM32F407ZGTx
+   - **调试器**: ST-Link GDB Server
+   - **系统时钟**: 168MHz
+   - **编译器**: ARM GCC
+
+3. **编译项目**
+   ```bash
+   # 方法1: 使用IDE界面
+   Project -> Build Project (Ctrl+B)
+   
+   # 方法2: 使用命令行（在项目根目录）
+   make clean
+   make all
+   ```
+
+4. **下载和调试**
+   - 连接ST-Link调试器
+   - 点击 `Run -> Debug As -> STM32 MCU C/C++ Application`
+   - 或使用快捷键 `F11` 进入调试模式
+
+5. **快速编译脚本**
+   项目提供了便捷的批处理脚本：
+   ```bash
+   # Windows环境
+   build_project.bat      # 编译项目
+   quick_start.bat        # 快速启动
+   syntax_check.bat       # 语法检查
+   ```
 
 ### 调试配置
 
@@ -582,18 +738,61 @@ Received Message: ID=0x602, Standard, Data, DLC=8, Data=...
 - FreeRTOS用户手册
 
 ### 版本信息
-- 版本: V1.0
-- 日期: 2024-12-19
-- 作者: 正点原子技术专家
-- 许可: MIT License
+- **当前版本**: V3.0.0
+- **发布日期**: 2024-12-20
+- **兼容性**: STM32F407ZGTx + WCMCU-230/SN65HVD230
+- **依赖**: STM32 HAL库 + FreeRTOS V10.3.1
+- **开发环境**: STM32CubeIDE 1.8.0+
+- **作者**: 正点原子技术专家
+- **许可**: MIT License
 
 ### 更新日志
-- V1.0 (2024-12-19): 初始版本发布
-  - 完成MCP2515驱动开发
-  - 实现CAN应用层封装
-  - 添加双节点通信功能
-  - 集成FreeRTOS多任务系统
-  - 完善调试和测试功能
+
+#### V3.0.0 (2024-12-20) - 当前版本
+- ✅ **重构项目架构**: 基于STM32内置CAN控制器
+- ✅ **双节点通信**: 完整的与WCMCU-230模块通信协议
+- ✅ **触发发送功能**: 串口命令触发CAN消息发送
+- ✅ **CAN2静默监听**: 总线消息监控和统计
+- ✅ **优化消息协议**: 标准化消息格式和ID分配
+- ✅ **完善错误处理**: 增强的错误检测和恢复机制
+- ✅ **文档更新**: 详细的功能说明和使用指南
+- ✅ **代码优化**: 清理冗余代码，提高可维护性
+
+#### V2.1.0 (2024-12-19)
+- ✅ 完善双CAN节点通信协议
+- ✅ 优化消息处理性能
+- ✅ 增强错误处理机制
+- ✅ 完善调试输出信息
+- ✅ 更新文档和注释
+
+#### V2.0.0 (2024-12-18)
+- ✅ 重构CAN通信架构
+- ✅ 实现双节点通信功能
+- ✅ 集成MCP2515驱动
+- ✅ 添加FreeRTOS任务管理
+- ✅ 完善消息协议定义
+
+#### V1.0.0 (2024-12-15)
+- ✅ 基础CAN通信功能
+- ✅ MCP2515驱动实现
+- ✅ 基本消息收发
+- ✅ 串口调试输出
+
+### 项目特色
+
+#### 🚀 技术亮点
+- **多功能集成**: 双节点通信、触发发送、静默监听三大核心功能
+- **实时性能**: 基于FreeRTOS的多任务并发处理
+- **可扩展性**: 预留MCP2515 SPI接口，支持功能扩展
+- **调试友好**: 完整的串口调试信息和统计数据
+- **文档完善**: 详细的技术文档和使用说明
+
+#### 📋 应用场景
+- **CAN总线学习**: 理解CAN协议和STM32 CAN控制器
+- **双节点通信**: 实现设备间的可靠数据交换
+- **总线监控**: 分析和诊断CAN总线通信
+- **原型开发**: 快速搭建CAN通信系统原型
+- **教学演示**: CAN通信技术的教学和演示
 
 ---
 

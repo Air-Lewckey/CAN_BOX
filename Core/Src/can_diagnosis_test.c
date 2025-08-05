@@ -2,14 +2,14 @@
 /**
   ******************************************************************************
   * @file           : can_diagnosis_test.c
-  * @brief          : CAN总线诊断功能测试程序
+  * @brief          : CAN bus diagnosis function test program
   * @author         : Assistant
   * @version        : V1.0
   * @date           : 2025-01-XX
   ******************************************************************************
   * @attention
   *
-  * 本文件提供CAN总线诊断功能的测试接口
+  * This file provides test interface for CAN bus diagnosis functionality
   *
   ******************************************************************************
   */
@@ -38,7 +38,7 @@ static void CAN_Diagnosis_PrintRecommendations(CAN_Bus_Diagnosis_t* diagnosis);
 /* Private user code ---------------------------------------------------------*/
 
 /**
-  * @brief  执行CAN总线诊断测试
+  * @brief  Execute CAN bus diagnosis test
   * @param  None
   * @retval None
   */
@@ -47,7 +47,7 @@ void CAN_Diagnosis_RunTest(void)
     // printf("\r\n=== CAN Bus Diagnosis Test ===\r\n");
     // printf("Starting comprehensive CAN bus diagnosis...\r\n\r\n");
     
-    // 执行完整诊断
+    // Execute complete diagnosis
     CAN_Bus_Diagnosis_t* diagnosis = CAN_Bus_PerformDiagnosis();
     
     if (diagnosis == NULL) {
@@ -55,17 +55,17 @@ void CAN_Diagnosis_RunTest(void)
         return;
     }
     
-    // 打印诊断结果
+    // Print diagnosis results
     CAN_Diagnosis_PrintResults(diagnosis);
     
-    // 打印修复建议
+    // Print repair recommendations
     CAN_Diagnosis_PrintRecommendations(diagnosis);
     
     // printf("=== Diagnosis Test Completed ===\r\n\r\n");
 }
 
 /**
-  * @brief  执行快速CAN总线检查测试
+  * @brief  Execute quick CAN bus check test
   * @param  None
   * @retval None
   */
@@ -86,15 +86,15 @@ void CAN_Diagnosis_QuickTest(void)
 }
 
 /**
-  * @brief  打印详细的诊断结果
-  * @param  diagnosis: 诊断结果指针
+  * @brief  Print detailed diagnosis results
+  * @param  diagnosis: Diagnosis result pointer
   * @retval None
   */
 static void CAN_Diagnosis_PrintResults(CAN_Bus_Diagnosis_t* diagnosis)
 {
     // printf("=== Detailed Diagnosis Results ===\r\n");
     
-    // 总体状态
+    // Overall status
     // printf("Overall Status: ");
     switch (diagnosis->overall_status) {
         case CAN_DIAGNOSIS_OK:
@@ -111,7 +111,7 @@ static void CAN_Diagnosis_PrintResults(CAN_Bus_Diagnosis_t* diagnosis)
             break;
     }
     
-    // 连通性测试结果
+    // Connectivity test results
     // printf("\r\nConnectivity Test:\r\n");
     // printf("  Status: ");
     switch (diagnosis->connectivity_test.status) {
@@ -134,7 +134,7 @@ static void CAN_Diagnosis_PrintResults(CAN_Bus_Diagnosis_t* diagnosis)
     // printf("  TEC Increase: %u\r\n", diagnosis->connectivity_test.tec_increase);
     // printf("  REC Increase: %u\r\n", diagnosis->connectivity_test.rec_increase);
     
-    // 终端电阻测试结果
+    // Termination test results
     // printf("\r\nTermination Test:\r\n");
     // printf("  Status: ");
     switch (diagnosis->termination_test.status) {
@@ -155,7 +155,7 @@ static void CAN_Diagnosis_PrintResults(CAN_Bus_Diagnosis_t* diagnosis)
     // printf("  Error Flags After: 0x%02X\r\n", diagnosis->termination_test.error_flags_after);
     // printf("  Send Errors: %u\r\n", diagnosis->termination_test.send_errors);
     
-    // 总线负载分析
+    // Bus load analysis
     // printf("\r\nBus Load Analysis:\r\n");
     // printf("  Load Level: ");
     switch (diagnosis->bus_load.load_level) {
@@ -178,7 +178,7 @@ static void CAN_Diagnosis_PrintResults(CAN_Bus_Diagnosis_t* diagnosis)
     // printf("  Messages/Second: %.2f\r\n", diagnosis->bus_load.messages_per_second);
     // printf("  Total Messages: %lu\r\n", diagnosis->bus_load.total_messages);
     
-    // 电气状态
+    // Electrical status
     // printf("\r\nElectrical Status:\r\n");
     // printf("  Status: ");
     switch (diagnosis->electrical.status) {

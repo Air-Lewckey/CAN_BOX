@@ -39,7 +39,7 @@ HAL_StatusTypeDef CAN2_Demo_Init(void)
 {
     HAL_StatusTypeDef status;
     
-    // printf("[CAN2-INIT] Starting CAN2 Demo initialization...\r\n");
+    printf("[CAN2-INIT] Starting CAN2 Demo initialization...\r\n");
     
     // 重要：必须先配置CAN1的过滤器，因为CAN2依赖于CAN1
     // CAN2过滤器配置 - 接收所有消息（修复版本）
@@ -55,8 +55,6 @@ HAL_StatusTypeDef CAN2_Demo_Init(void)
     can2_filter_config.SlaveStartFilterBank = 14;  // 关键：CAN2从过滤器组14开始
     
     // 临时启用调试信息以验证过滤器配置
-    printf("[CAN2-DEBUG] Configuring CAN2 filter - Bank:%d, FIFO:%d\r\n", 
-           can2_filter_config.FilterBank, can2_filter_config.FilterFIFOAssignment);
     
     // 重要：必须使用CAN1句柄来配置CAN2过滤器（STM32硬件特性）
     status = HAL_CAN_ConfigFilter(&hcan1, &can2_filter_config);
@@ -64,7 +62,7 @@ HAL_StatusTypeDef CAN2_Demo_Init(void)
         printf("[CAN2-ERROR] Filter configuration failed: %d\r\n", status);
         return status;
     }
-    printf("[CAN2-DEBUG] Filter configured successfully\r\n");
+
     
     // 启动CAN2
     status = HAL_CAN_Start(&hcan2);
@@ -72,7 +70,7 @@ HAL_StatusTypeDef CAN2_Demo_Init(void)
         printf("[CAN2-ERROR] CAN2 start failed: %d\r\n", status);
         return status;
     }
-    printf("[CAN2-DEBUG] CAN2 started successfully\r\n");
+
     
     // 激活CAN2接收中断
     status = HAL_CAN_ActivateNotification(&hcan2, CAN_IT_RX_FIFO0_MSG_PENDING);
@@ -80,34 +78,30 @@ HAL_StatusTypeDef CAN2_Demo_Init(void)
         printf("[CAN2-ERROR] RX interrupt activation failed: %d\r\n", status);
         return status;
     }
-    printf("[CAN2-DEBUG] RX interrupt activated successfully\r\n");
+
     
     // 检查NVIC中断是否启用
     if (NVIC_GetEnableIRQ(CAN2_RX0_IRQn)) {
-        printf("[CAN2-DEBUG] NVIC CAN2_RX0 interrupt is enabled\r\n");
+        // NVIC CAN2_RX0 interrupt is enabled
     } else {
         printf("[CAN2-ERROR] NVIC CAN2_RX0 interrupt is NOT enabled\r\n");
     }
     
     // 检查CAN2寄存器状态
-    printf("[CAN2-DEBUG] CAN2->IER = 0x%08lX\r\n", hcan2.Instance->IER);
-    printf("[CAN2-DEBUG] CAN2->MSR = 0x%08lX\r\n", hcan2.Instance->MSR);
-    printf("[CAN2-DEBUG] CAN2->ESR = 0x%08lX\r\n", hcan2.Instance->ESR);
     
     // 初始化统计信息
     memset(&can2_stats, 0, sizeof(can2_stats));
     can2_stats.initialized = 1;
     
-    // printf("[CAN2-INIT] CAN2 Demo initialized successfully\r\n");
-    // printf("[CAN2-INIT] Filter Bank: %d, FIFO: %d\r\n", 
-    //        can2_filter_config.FilterBank, can2_filter_config.FilterFIFOAssignment);
-    // printf("[CAN2-INIT] Bitrate: 500Kbps, Sample Point: 78.6%%\r\n");
-    // printf("[CAN2-INIT] Prescaler: 6, TimeSeg1: 10TQ, TimeSeg2: 3TQ\r\n");
+    printf("[CAN2-INIT] CAN2 Demo initialized successfully\r\n");
+    printf("[CAN2-INIT] Filter Bank: %d, FIFO: %d\r\n", 
+           can2_filter_config.FilterBank, can2_filter_config.FilterFIFOAssignment);
+    printf("[CAN2-INIT] Bitrate: 500Kbps, Sample Point: 78.6%%\r\n");
+    printf("[CAN2-INIT] Prescaler: 6, TimeSeg1: 10TQ, TimeSeg2: 3TQ\r\n");
+    printf("[CAN2-INIT] Waiting for CAN messages from CANOE...\r\n");
     
     // 打印CAN2状态信息
     uint32_t can_state = HAL_CAN_GetState(&hcan2);
-    printf("[CAN2-DEBUG] CAN2 State: %lu\r\n", can_state);
-    printf("[CAN2-DEBUG] Ready to receive CAN1 messages (0x100-0x500)\r\n");
     
     return HAL_OK;
 }
@@ -121,8 +115,7 @@ void CAN2_Demo_Task(void *argument)
 {
     uint32_t current_time;
     
-    printf("[CAN2-TASK] CAN2 Silent Listener task started\r\n");
-    printf("[CAN2-TASK] CAN2 configured in SILENT mode - receive only\r\n");
+
     
     for(;;) {
         current_time = HAL_GetTick();
@@ -237,16 +230,19 @@ HAL_StatusTypeDef CAN2_Demo_SendMessage(uint32_t id, uint8_t *data, uint8_t leng
   */
 void CAN2_Demo_ProcessReceivedMessage(CAN_RxHeaderTypeDef *rx_header, uint8_t *rx_data)
 {
+    // 增加中断计数器
+    interrupt_counter++;
+    
     // 更新统计信息
     can2_stats.total_received++;
     can2_stats.last_rx_time = HAL_GetTick();
     
-    // 只打印接收到的CAN数据
-    printf("CAN2-RX ID:0x%03lX DLC:%lu Data:", rx_header->StdId, rx_header->DLC);
+    // 打印详细的接收信息
+    printf("[CAN2-RX #%lu] ID:0x%03lX DLC:%lu Data:", interrupt_counter, rx_header->StdId, rx_header->DLC);
     for (int i = 0; i < rx_header->DLC; i++) {
         printf(" %02X", rx_data[i]);
     }
-    printf("\r\n");
+    printf(" (Time:%lu)\r\n", HAL_GetTick());
 }
 
 /**
@@ -262,25 +258,25 @@ void CAN2_Demo_RunDiagnostic(void)
     printf("[CAN2-DIAG] Interrupt Counter: %lu\r\n", interrupt_counter);
     printf("[CAN2-DIAG] Last RX Time: %lu ms\r\n", can2_stats.last_rx_time);
     
-    // 详细的故障排除指南
-    printf("\r\n[CAN2-TROUBLESHOOT] === 故障排除指南 ===\r\n");
-    printf("[CAN2-TROUBLESHOOT] 如果接收计数为0，请检查：\r\n");
-    printf("[CAN2-TROUBLESHOOT] 1. 硬件连接：\r\n");
-    printf("[CAN2-TROUBLESHOOT]    - STM32 PB12(CAN2_RX) 连接到 CANOE CAN_H\r\n");
-    printf("[CAN2-TROUBLESHOOT]    - STM32 GND 连接到 CANOE GND\r\n");
-    printf("[CAN2-TROUBLESHOOT]    - 确保没有连接CAN_L（单线CAN）\r\n");
-    printf("[CAN2-TROUBLESHOOT] 2. CANOE配置：\r\n");
-    printf("[CAN2-TROUBLESHOOT]    - 波特率设置为500Kbps\r\n");
-    printf("[CAN2-TROUBLESHOOT]    - 消息ID设置为0x201\r\n");
-    printf("[CAN2-TROUBLESHOOT]    - 确保CANOE处于在线状态\r\n");
-    printf("[CAN2-TROUBLESHOOT]    - 检查CANOE发送周期是否正确（200ms）\r\n");
-    printf("[CAN2-TROUBLESHOOT] 3. 电气特性：\r\n");
-    printf("[CAN2-TROUBLESHOOT]    - CAN_H电平：空闲时2.5V，显性时3.5V\r\n");
-    printf("[CAN2-TROUBLESHOOT]    - 使用示波器检查PB12引脚是否有信号\r\n");
-    printf("[CAN2-TROUBLESHOOT] 4. 软件配置：\r\n");
-    printf("[CAN2-TROUBLESHOOT]    - CAN2已配置为静默模式（只接收）\r\n");
-    printf("[CAN2-TROUBLESHOOT]    - 过滤器配置为接收所有消息\r\n");
-    printf("[CAN2-TROUBLESHOOT]    - 中断已正确配置和启用\r\n");
+    // Detailed troubleshooting guide
+    printf("\r\n[CAN2-TROUBLESHOOT] === Troubleshooting Guide ===\r\n");
+    printf("[CAN2-TROUBLESHOOT] If receive count is 0, please check:\r\n");
+    printf("[CAN2-TROUBLESHOOT] 1. Hardware Connection:\r\n");
+    printf("[CAN2-TROUBLESHOOT]    - STM32 PB12(CAN2_RX) connect to CANOE CAN_H\r\n");
+    printf("[CAN2-TROUBLESHOOT]    - STM32 GND connect to CANOE GND\r\n");
+    printf("[CAN2-TROUBLESHOOT]    - Ensure CAN_L is NOT connected (single-wire CAN)\r\n");
+    printf("[CAN2-TROUBLESHOOT] 2. CANOE Configuration:\r\n");
+    printf("[CAN2-TROUBLESHOOT]    - Bitrate set to 500Kbps\r\n");
+    printf("[CAN2-TROUBLESHOOT]    - Message ID set to 0x201\r\n");
+    printf("[CAN2-TROUBLESHOOT]    - Ensure CANOE is online\r\n");
+    printf("[CAN2-TROUBLESHOOT]    - Check CANOE send cycle is correct (200ms)\r\n");
+    printf("[CAN2-TROUBLESHOOT] 3. Electrical Characteristics:\r\n");
+    printf("[CAN2-TROUBLESHOOT]    - CAN_H level: 2.5V idle, 3.5V dominant\r\n");
+    printf("[CAN2-TROUBLESHOOT]    - Use oscilloscope to check PB12 pin signal\r\n");
+    printf("[CAN2-TROUBLESHOOT] 4. Software Configuration:\r\n");
+    printf("[CAN2-TROUBLESHOOT]    - CAN2 configured in silent mode (receive only)\r\n");
+    printf("[CAN2-TROUBLESHOOT]    - Filter configured to receive all messages\r\n");
+    printf("[CAN2-TROUBLESHOOT]    - Interrupt correctly configured and enabled\r\n");
     printf("[CAN2-DIAG] === Silent Mode - No Transmission ===\r\n");
 }
 

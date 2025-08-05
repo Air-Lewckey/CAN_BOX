@@ -49,13 +49,13 @@ HAL_StatusTypeDef MCP2515_TestDemo_Init(void)
 {
     printf("[MCP2515-RX] Starting MCP2515 receive-only demo initialization...\r\n");
     
-    // 初始化MCP2515为500Kbps波特率
+    // Initialize MCP2515 with 500Kbps baud rate
     if (MCP2515_Init(MCP2515_BAUD_500K) != MCP2515_OK) {
         printf("[MCP2515-RX] ERROR: MCP2515 initialization failed!\r\n");
         return HAL_ERROR;
     }
     
-    // 执行回环测试验证MCP2515硬件功能
+    // Perform loopback test to verify MCP2515 hardware functionality
     printf("[MCP2515-RX] Performing loopback test to verify hardware...\r\n");
     if (MCP2515_LoopbackTest() == MCP2515_OK) {
         printf("[MCP2515-RX] Loopback test PASSED - MCP2515 hardware is working correctly\r\n");

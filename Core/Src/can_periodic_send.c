@@ -2,17 +2,17 @@
 /**
   ******************************************************************************
   * @file           : can_periodic_send.c
-  * @brief          : STM32 CAN1周期性发送任务实现
+  * @brief          : STM32 CAN1 periodic send task implementation
   * @author         : lewckey
   * @version        : V1.0
   * @date           : 2025-01-XX
   ******************************************************************************
   * @attention
   *
-  * 本文件实现了STM32自带CAN1的周期性发送功能：
-  * 1. 每2秒发送一个CAN报文
-  * 2. 报文包含时间戳和计数器信息
-  * 3. 使用标准帧格式
+  * This file implements STM32 built-in CAN1 periodic send functionality:
+  * 1. Send a CAN message every 2 seconds
+  * 2. Message contains timestamp and counter information
+  * 3. Uses standard frame format
   *
   ******************************************************************************
   */
@@ -26,13 +26,13 @@
 #include <string.h>
 
 /* Private defines -----------------------------------------------------------*/
-#define CAN_PERIODIC_SEND_ID    0x123   // 周期性发送的CAN ID
-#define SEND_PERIOD_MS          2000    // 发送周期：2秒
+#define CAN_PERIODIC_SEND_ID    0x123   // CAN ID for periodic sending
+#define SEND_PERIOD_MS          2000    // Send period: 2 seconds
 
 /* Private variables ---------------------------------------------------------*/
-static uint32_t send_counter = 0;       // 发送计数器
-static uint32_t last_send_time = 0;     // 上次发送时间
-static uint8_t task_initialized = 0;    // 任务初始化标志
+static uint32_t send_counter = 0;       // Send counter
+static uint32_t last_send_time = 0;     // Last send time
+static uint8_t task_initialized = 0;    // Task initialization flag
 
 /* External variables --------------------------------------------------------*/
 extern CAN_HandleTypeDef hcan1;
@@ -43,18 +43,18 @@ static HAL_StatusTypeDef CAN_SendPeriodicMessage(void);
 /* Public functions ----------------------------------------------------------*/
 
 /**
-  * @brief  CAN周期性发送任务初始化
+  * @brief  CAN periodic send task initialization
   * @param  None
-  * @retval HAL_OK: 成功, HAL_ERROR: 失败
+  * @retval HAL_OK: Success, HAL_ERROR: Failed
   */
 HAL_StatusTypeDef CAN_PeriodicSend_Init(void)
 {
-    // 检查CAN1是否已经启动
+    // Check if CAN1 is already started
     if ((hcan1.Instance->MSR & CAN_MSR_INAK) == 0) {
-        // CAN1已经启动，无需重复启动
+        // CAN1 is already started, no need to restart
         printf("[INFO] CAN1 already started, skipping initialization\r\n");
         
-        // 初始化任务状态变量
+        // Initialize task state variables
         task_initialized = 1;
         send_counter = 0;
         last_send_time = 0;
@@ -63,9 +63,9 @@ HAL_StatusTypeDef CAN_PeriodicSend_Init(void)
         return HAL_OK;
     }
     
-    // 配置CAN1过滤器（接受所有消息）
+    // Configure CAN1 filter (accept all messages)
     CAN_FilterTypeDef sFilterConfig;
-    sFilterConfig.FilterBank = 1;  // 使用过滤器组1，避免与其他模块冲突
+    sFilterConfig.FilterBank = 1;  // Use filter bank 1 to avoid conflicts with other modules
     sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
     sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
     sFilterConfig.FilterIdHigh = 0x0000;
@@ -81,13 +81,13 @@ HAL_StatusTypeDef CAN_PeriodicSend_Init(void)
         return HAL_ERROR;
     }
     
-    // 启动CAN1
+    // Start CAN1
     if (HAL_CAN_Start(&hcan1) != HAL_OK) {
         printf("[ERROR] CAN1 start failed!\r\n");
         return HAL_ERROR;
     }
     
-    // 激活CAN1接收中断
+    // Activate CAN1 receive interrupt
     if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK) {
         printf("[ERROR] CAN1 RX interrupt activation failed!\r\n");
         return HAL_ERROR;
@@ -104,15 +104,15 @@ HAL_StatusTypeDef CAN_PeriodicSend_Init(void)
 }
 
 /**
-  * @brief  CAN周期性发送任务主函数
-  * @param  argument: 任务参数
+  * @brief  CAN periodic send task main function
+  * @param  argument: Task parameter
   * @retval None
   */
 void CAN_PeriodicSend_Task(void *argument)
 {
     printf("[TASK] CAN1 periodic send task started\r\n");
     
-    // 等待任务初始化完成
+    // Wait for task initialization to complete
     while (!task_initialized) {
         osDelay(100);
     }
@@ -122,9 +122,9 @@ void CAN_PeriodicSend_Task(void *argument)
     for (;;) {
         uint32_t current_time = HAL_GetTick();
         
-        // 检查是否到了发送时间
+        // Check if it's time to send
         if ((current_time - last_send_time) >= SEND_PERIOD_MS) {
-            // 发送周期性消息
+            // Send periodic message
             if (CAN_SendPeriodicMessage() == HAL_OK) {
                 send_counter++;
                 last_send_time = current_time;
@@ -135,14 +135,14 @@ void CAN_PeriodicSend_Task(void *argument)
             }
         }
         
-        // 任务延时100ms
+        // Task delay 100ms
         osDelay(100);
     }
 }
 
 /**
-  * @brief  获取周期性发送统计信息
-  * @param  stats: 统计信息结构体指针
+  * @brief  Get periodic send statistics
+  * @param  stats: Statistics structure pointer
   * @retval None
   */
 void CAN_PeriodicSend_GetStats(CAN_PeriodicSend_Stats_t *stats)
@@ -156,7 +156,7 @@ void CAN_PeriodicSend_GetStats(CAN_PeriodicSend_Stats_t *stats)
 }
 
 /**
-  * @brief  重置周期性发送统计信息
+  * @brief  Reset periodic send statistics
   * @retval None
   */
 void CAN_PeriodicSend_ResetStats(void)
@@ -169,8 +169,8 @@ void CAN_PeriodicSend_ResetStats(void)
 /* Private functions ---------------------------------------------------------*/
 
 /**
-  * @brief  发送周期性CAN消息
-  * @retval HAL状态
+  * @brief  Send periodic CAN message
+  * @retval HAL status
   */
 static HAL_StatusTypeDef CAN_SendPeriodicMessage(void)
 {
@@ -179,7 +179,7 @@ static HAL_StatusTypeDef CAN_SendPeriodicMessage(void)
     uint32_t TxMailbox;
     uint32_t current_time = HAL_GetTick();
     
-    // 配置发送头
+    // Configure transmit header
     TxHeader.StdId = CAN_PERIODIC_SEND_ID;
     TxHeader.ExtId = 0x00;
     TxHeader.RTR = CAN_RTR_DATA;
@@ -187,16 +187,27 @@ static HAL_StatusTypeDef CAN_SendPeriodicMessage(void)
     TxHeader.DLC = 8;
     TxHeader.TransmitGlobalTime = DISABLE;
     
-    // 构造消息数据
-    TxData[0] = 0xCA;  // 消息标识
-    TxData[1] = 0xFE;  // 消息标识
-    TxData[2] = (uint8_t)(send_counter >> 8);   // 发送计数高字节
-    TxData[3] = (uint8_t)send_counter;          // 发送计数低字节
-    TxData[4] = (uint8_t)(current_time >> 24);  // 时间戳字节3
-    TxData[5] = (uint8_t)(current_time >> 16);  // 时间戳字节2
-    TxData[6] = (uint8_t)(current_time >> 8);   // 时间戳字节1
-    TxData[7] = (uint8_t)current_time;          // 时间戳字节0
+    // Construct message data
+    TxData[0] = 0xCA;  // Message identifier
+    TxData[1] = 0xFE;  // Message identifier
+    TxData[2] = (uint8_t)(send_counter >> 8);   // Send counter high byte
+    TxData[3] = (uint8_t)send_counter;          // Send counter low byte
+    TxData[4] = (uint8_t)(current_time >> 24);  // Timestamp byte 3
+    TxData[5] = (uint8_t)(current_time >> 16);  // Timestamp byte 2
+    TxData[6] = (uint8_t)(current_time >> 8);   // Timestamp byte 1
+    TxData[7] = (uint8_t)current_time;          // Timestamp byte 0
     
-    // 发送消息
-    return HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
+    // Send message
+    HAL_StatusTypeDef status = HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
+    
+    if (status == HAL_OK) {
+        // Print CAN1 transmit log
+        printf("[CAN1-TX] ID:0x%03X, DLC:%d, Data:", (unsigned int)TxHeader.StdId, TxHeader.DLC);
+        for (int i = 0; i < TxHeader.DLC && i < 8; i++) {
+            printf("%02X ", TxData[i]);
+        }
+        printf("\r\n");
+    }
+    
+    return status;
 }

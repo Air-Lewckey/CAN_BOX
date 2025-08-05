@@ -10,6 +10,7 @@
 "./Core/Src/can_loop_test.o"
 "./Core/Src/can_periodic_send.o"
 "./Core/Src/can_simple_demo.o"
+"./Core/Src/can_trigger_send.o"
 "./Core/Src/freertos.o"
 "./Core/Src/main.o"
 "./Core/Src/mcp2515.o"

@@ -148,23 +148,21 @@ void HAL_CAN_MspInit(CAN_HandleTypeDef* hcan)
     PB12     ------> CAN2_RX
     PB13     ------> CAN2_TX
     */
-    // 配置CAN2_RX引脚(PB12) - 需要上拉
+    // Configure CAN2_RX pin (PB12) - requires pull-up
     GPIO_InitStruct.Pin = GPIO_PIN_12;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_PULLUP;  // CAN RX引脚需要上拉
+    GPIO_InitStruct.Pull = GPIO_PULLUP;  // CAN RX pin requires pull-up
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
     GPIO_InitStruct.Alternate = GPIO_AF9_CAN2;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
     
-    // 配置CAN2_TX引脚(PB13) - 无需上拉
+    // Configure CAN2_TX pin (PB13) - no pull-up needed
     GPIO_InitStruct.Pin = GPIO_PIN_13;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
     GPIO_InitStruct.Alternate = GPIO_AF9_CAN2;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-    
-    printf("[CAN2-MSP] GPIO configured - PB12(RX) with pullup, PB13(TX) no pull\r\n");
 
     /* CAN2 interrupt Init */
     HAL_NVIC_SetPriority(CAN2_TX_IRQn, 5, 0);
@@ -348,7 +346,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
     /* USART2 interrupt Init */
-    HAL_NVIC_SetPriority(USART2_IRQn, 8, 0);
+    HAL_NVIC_SetPriority(USART2_IRQn, 5, 0);  // 修改为5，符合FreeRTOS中断优先级要求
     HAL_NVIC_EnableIRQ(USART2_IRQn);
     /* USER CODE BEGIN USART2_MspInit 1 */
 

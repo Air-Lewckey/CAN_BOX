@@ -2,20 +2,20 @@
 /**
   ******************************************************************************
   * @file           : mcp2515.c
-  * @brief          : MCP2515 CAN控制器驱动实现文件
+  * @brief          : MCP2515 CAN controller driver implementation file
   * @author         : lewckey
   * @version        : V1.0
   * @date           : 2025-01-XX
   ******************************************************************************
   * @attention
   *
-  * 本驱动实现了MCP2515 CAN控制器的完整功能，包括：
-  * 1. SPI底层通信
-  * 2. 寄存器读写操作
-  * 3. CAN控制器初始化和配置
-  * 4. CAN消息的发送和接收
-  * 5. 中断处理和状态查询
-  * 6. 错误处理和调试功能
+  * This driver implements complete functionality for MCP2515 CAN controller, including:
+  * 1. Low-level SPI communication
+  * 2. Register read/write operations
+  * 3. CAN controller initialization and configuration
+  * 4. CAN message transmission and reception
+  * 5. Interrupt handling and status query
+  * 6. Error handling and debugging functions
   *
   ******************************************************************************
   */
@@ -28,34 +28,34 @@
 #include "cmsis_os.h"  // For osDelay function in FreeRTOS environment
 
 /* Private defines -----------------------------------------------------------*/
-#define MCP2515_INIT_TIMEOUT    100     // 初始化超时时间(ms)
+#define MCP2515_INIT_TIMEOUT    100     // Initialization timeout (ms)
 
 /* Private variables ---------------------------------------------------------*/
-static uint8_t mcp2515_initialized = 0;  // 初始化标志
+static uint8_t mcp2515_initialized = 0;  // Initialization flag
 
-/* 波特率配置表 - 多种晶振频率兼容配置 */
-/* 基于CAN1实际配置优化：Prescaler=6, TimeSeg1=11TQ, TimeSeg2=2TQ, 500Kbps */
+/* Baud rate configuration table - Compatible with multiple crystal frequencies */
+/* Optimized based on CAN1 actual configuration: Prescaler=6, TimeSeg1=11TQ, TimeSeg2=2TQ, 500Kbps */
 static const uint8_t mcp2515_baud_config[4][3] = {
     // CNF1, CNF2, CNF3
-    {0x07, 0xFA, 0x87},  // 125Kbps - 尝试原始配置
-    {0x03, 0xFA, 0x87},  // 250Kbps - 尝试原始配置  
-    {0x01, 0xFA, 0x87},  // 500Kbps - 尝试原始配置，可能适合8MHz晶振
-    {0x00, 0xFA, 0x87}   // 1Mbps   - 尝试原始配置
+    {0x07, 0xFA, 0x87},  // 125Kbps - Try original configuration
+    {0x03, 0xFA, 0x87},  // 250Kbps - Try original configuration  
+    {0x01, 0xFA, 0x87},  // 500Kbps - Try original configuration, may suit 8MHz crystal
+    {0x00, 0xFA, 0x87}   // 1Mbps   - Try original configuration
 };
 
-/* 配置说明：多种500Kbps配置供测试
- * CAN1配置: Prescaler=6, TimeSeg1=11TQ, TimeSeg2=2TQ, 500Kbps
- * 当前使用原始配置{0x01, 0xFA, 0x87}，适合8MHz晶振
- * 如果仍然不工作，可能需要尝试其他配置或检查硬件连接
+/* Configuration notes: Multiple 500Kbps configurations for testing
+ * CAN1 configuration: Prescaler=6, TimeSeg1=11TQ, TimeSeg2=2TQ, 500Kbps
+ * Currently using original configuration {0x01, 0xFA, 0x87}, suitable for 8MHz crystal
+ * If still not working, may need to try other configurations or check hardware connections
  */
 
-/* 备用500Kbps配置表，用于测试不同晶振频率 */
+/* Alternative 500Kbps configuration table for testing different crystal frequencies */
 static const uint8_t mcp2515_500k_test_configs[][3] = {
-    {0x01, 0xFA, 0x87},  // 配置1: 8MHz晶振标准配置
-    {0x00, 0xB5, 0x01},  // 配置2: 16MHz晶振配置
-    {0x00, 0x92, 0x01},  // 配置3: 16MHz晶振紧凑配置
-    {0x00, 0xAC, 0x01},  // 配置4: 16MHz晶振替代配置
-    {0x01, 0xB5, 0x01},  // 配置5: 8MHz晶振宽松配置
+    {0x01, 0xFA, 0x87},  // Config 1: 8MHz crystal standard configuration
+    {0x00, 0xB5, 0x01},  // Config 2: 16MHz crystal configuration
+    {0x00, 0x92, 0x01},  // Config 3: 16MHz crystal compact configuration
+    {0x00, 0xAC, 0x01},  // Config 4: 16MHz crystal alternative configuration
+    {0x01, 0xB5, 0x01},  // Config 5: 8MHz crystal relaxed configuration
 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -64,20 +64,20 @@ static void MCP2515_LoadTxBuffer(uint8_t buffer, MCP2515_CANMessage_t *message);
 static void MCP2515_ReadRxBuffer(uint8_t buffer, MCP2515_CANMessage_t *message);
 
 /**
-  * @brief  配置MCP2515为接收所有消息的过滤器设置
+  * @brief  Configure MCP2515 filter settings to receive all messages
   * @param  None
   * @retval None
   */
 void MCP2515_SetFilterForAll(void) {
     printf("[MCP2515-FILTER] Setting filters to accept all messages...\r\n");
     
-    // 设置接收掩码为0（接收所有ID）
+    // Set receive masks to 0 (accept all IDs)
     MCP2515_WriteRegister(MCP2515_RXM0SIDH, 0x00);
     MCP2515_WriteRegister(MCP2515_RXM0SIDL, 0x00);
     MCP2515_WriteRegister(MCP2515_RXM1SIDH, 0x00);
     MCP2515_WriteRegister(MCP2515_RXM1SIDL, 0x00);
     
-    // 设置过滤器为0（接收所有ID）
+    // Set filters to 0 (accept all IDs)
     MCP2515_WriteRegister(MCP2515_RXF0SIDH, 0x00);
     MCP2515_WriteRegister(MCP2515_RXF0SIDL, 0x00);
     MCP2515_WriteRegister(MCP2515_RXF1SIDH, 0x00);
@@ -95,16 +95,16 @@ void MCP2515_SetFilterForAll(void) {
 }
 
 /**
-  * @brief  确保MCP2515处于正常工作模式
+  * @brief  Ensure MCP2515 is in normal operating mode
   * @param  None
   * @retval None
   */
 void MCP2515_ModeNormal(void) {
     printf("[MCP2515-MODE] Setting to Normal mode...\r\n");
-    MCP2515_BitModify(MCP2515_CANCTRL, 0xE0, 0x00);  // 清除前3位（模式位）
+    MCP2515_BitModify(MCP2515_CANCTRL, 0xE0, 0x00);  // Clear top 3 bits (mode bits)
     osDelay(10);
     
-    // 验证模式设置
+    // Verify mode setting
     uint8_t mode = MCP2515_ReadRegister(MCP2515_CANCTRL) & 0xE0;
     if (mode == 0x00) {
         printf("[MCP2515-MODE] Successfully set to Normal mode\r\n");
@@ -114,7 +114,7 @@ void MCP2515_ModeNormal(void) {
 }
 
 /**
-  * @brief  测试不同的500Kbps波特率配置
+  * @brief  Test different 500Kbps baud rate configurations
   * @param  None
   * @retval None
   */
@@ -129,22 +129,22 @@ void MCP2515_Test500KConfigs(void)
                mcp2515_500k_test_configs[config_idx][1], 
                mcp2515_500k_test_configs[config_idx][2]);
         
-        // 切换到配置模式
+        // Switch to configuration mode
         if (MCP2515_SetMode(MCP2515_MODE_CONFIG) != MCP2515_OK) {
             printf("[ERROR] Failed to enter config mode\r\n");
             continue;
         }
         
-        // 应用测试配置
+        // Apply test configuration
         MCP2515_WriteRegister(MCP2515_CNF1, mcp2515_500k_test_configs[config_idx][0]);
         MCP2515_WriteRegister(MCP2515_CNF2, mcp2515_500k_test_configs[config_idx][1]);
         MCP2515_WriteRegister(MCP2515_CNF3, mcp2515_500k_test_configs[config_idx][2]);
         
-        // 清除错误标志
+        // Clear error flags
         MCP2515_WriteRegister(MCP2515_EFLG, 0x00);
         MCP2515_WriteRegister(MCP2515_CANINTF, 0x00);
         
-        // 切换到正常模式
+        // Switch to normal mode
         if (MCP2515_SetMode(MCP2515_MODE_NORMAL) != MCP2515_OK) {
             printf("[ERROR] Failed to enter normal mode\r\n");
             continue;
@@ -152,12 +152,12 @@ void MCP2515_Test500KConfigs(void)
         
         printf("[INFO] Configuration applied, monitoring for 3 seconds...\r\n");
         
-        // 监控3秒钟
+        // Monitor for 3 seconds
         uint32_t start_time = HAL_GetTick();
         uint8_t initial_rx_count = MCP2515_ReadRegister(MCP2515_REC);
         
         while((HAL_GetTick() - start_time) < 3000) {
-            // 检查是否有消息接收
+            // Check if messages are received
             if(MCP2515_CheckReceive()) {
                 printf("[SUCCESS] Messages detected with Configuration %d!\r\n", config_idx + 1);
                 printf("[INFO] Use this configuration for optimal performance\r\n");
@@ -166,7 +166,7 @@ void MCP2515_Test500KConfigs(void)
             osDelay(100);
         }
         
-        // 检查错误计数
+        // Check error count
         uint8_t final_rx_count = MCP2515_ReadRegister(MCP2515_REC);
         uint8_t error_flags = MCP2515_ReadRegister(MCP2515_EFLG);
         
@@ -184,43 +184,43 @@ void MCP2515_Test500KConfigs(void)
     printf("========================================================\r\n");
 }
 
-/* 底层SPI通信函数 -----------------------------------------------------------*/
+/* Low-level SPI communication functions -----------------------------------------------------------*/
 
 /**
-  * @brief  SPI读写一个字节
-  * @param  data: 要发送的数据
-  * @retval 接收到的数据
+  * @brief  SPI read/write one byte
+  * @param  data: Data to be sent
+  * @retval Received data
   */
 uint8_t MCP2515_SPI_ReadWrite(uint8_t data)
 {
     uint8_t rx_data = 0;
     HAL_StatusTypeDef status;
     
-    // 确保SPI不忙
+    // Ensure SPI is not busy
     uint32_t timeout = HAL_GetTick() + 100;
     while(__HAL_SPI_GET_FLAG(&hspi1, SPI_FLAG_BSY) && (HAL_GetTick() < timeout));
     
-    // 清除可能的错误标志
+    // Clear possible error flags
     __HAL_SPI_CLEAR_OVRFLAG(&hspi1);
     
-    // 使用HAL库进行SPI通信
+    // Use HAL library for SPI communication
     status = HAL_SPI_TransmitReceive(&hspi1, &data, &rx_data, 1, MCP2515_SPI_TIMEOUT);
     
     if (status == HAL_OK) {
         return rx_data;
     }
     
-    // 错误处理
+    // Error handling
     if (status == HAL_TIMEOUT) {
         printf("[MCP2515-SPI] Timeout - Check MISO connection\r\n");
     } else if (status == HAL_ERROR) {
         uint32_t error = HAL_SPI_GetError(&hspi1);
         printf("[MCP2515-SPI] Hardware Error - Code: 0x%08lX\r\n", error);
         
-        // 尝试重置SPI状态
+        // Try to reset SPI state
         __HAL_SPI_CLEAR_OVRFLAG(&hspi1);
         
-        // 如果是严重错误，尝试重新初始化SPI
+        // If serious error, try to reinitialize SPI
         if(error & HAL_SPI_ERROR_OVR) {
             printf("[MCP2515-SPI] Reinitializing SPI due to overrun error\r\n");
             HAL_SPI_DeInit(&hspi1);
@@ -231,13 +231,13 @@ uint8_t MCP2515_SPI_ReadWrite(uint8_t data)
         printf("[MCP2515-SPI] Busy - Previous operation not completed\r\n");
     }
     
-    return 0xFF;  // 通信失败
+    return 0xFF;  // Communication failed
 }
 
 /*
-// MCP2515相关函数已注释 - 硬件已移除
+// MCP2515 related functions commented out - Hardware removed
 /*
-  * @brief  拉低MCP2515片选信号
+  * @brief  Pull down MCP2515 chip select signal
   * @param  None
   * @retval None
   */
@@ -245,13 +245,13 @@ uint8_t MCP2515_SPI_ReadWrite(uint8_t data)
 void MCP2515_CS_Low(void)
 {
     HAL_GPIO_WritePin(MCP2515_CS_GPIO_Port, MCP2515_CS_Pin, GPIO_PIN_RESET);
-    // 添加小延时确保CS信号稳定
+    // Add small delay to ensure CS signal stability
     for(volatile int i = 0; i < 10; i++);
 }
 */
 
 /*
-  * @brief  拉高MCP2515片选信号
+  * @brief  Pull up MCP2515 chip select signal
   * @param  None
   * @retval None
   */
@@ -264,119 +264,119 @@ void MCP2515_CS_High(void)
 }
 */
 
-/* 寄存器读写函数 ------------------------------------------------------------*/
+/* Register read/write functions ------------------------------------------------------------*/
 
 /**
-  * @brief  读取MCP2515寄存器
-  * @param  address: 寄存器地址
-  * @retval 寄存器值
+  * @brief  Read MCP2515 register
+  * @param  address: Register address
+  * @retval Register value
   */
 uint8_t MCP2515_ReadRegister(uint8_t address)
 {
     uint8_t data;
     
-    MCP2515_CS_Low();                           // 拉低片选
-    MCP2515_SPI_ReadWrite(MCP2515_CMD_READ);    // 发送读指令
-    MCP2515_SPI_ReadWrite(address);             // 发送寄存器地址
-    data = MCP2515_SPI_ReadWrite(0x00);         // 读取数据
-    MCP2515_CS_High();                          // 拉高片选
+    MCP2515_CS_Low();                           // Pull down chip select
+    MCP2515_SPI_ReadWrite(MCP2515_CMD_READ);    // Send read command
+    MCP2515_SPI_ReadWrite(address);             // Send register address
+    data = MCP2515_SPI_ReadWrite(0x00);         // Read data
+    MCP2515_CS_High();                          // Pull up chip select
     
     return data;
 }
 
 /**
-  * @brief  写入MCP2515寄存器
-  * @param  address: 寄存器地址
-  * @param  data: 要写入的数据
+  * @brief  Write to MCP2515 register
+  * @param  address: Register address
+  * @param  data: Data to be written
   * @retval None
   */
 void MCP2515_WriteRegister(uint8_t address, uint8_t data)
 {
-    MCP2515_CS_Low();                           // 拉低片选
-    MCP2515_SPI_ReadWrite(MCP2515_CMD_WRITE);   // 发送写指令
-    MCP2515_SPI_ReadWrite(address);             // 发送寄存器地址
-    MCP2515_SPI_ReadWrite(data);                // 发送数据
-    MCP2515_CS_High();                          // 拉高片选
+    MCP2515_CS_Low();                           // Pull down chip select
+    MCP2515_SPI_ReadWrite(MCP2515_CMD_WRITE);   // Send write command
+    MCP2515_SPI_ReadWrite(address);             // Send register address
+    MCP2515_SPI_ReadWrite(data);                // Send data
+    MCP2515_CS_High();                          // Pull up chip select
 }
 
 /**
-  * @brief  修改MCP2515寄存器的指定位
-  * @param  address: 寄存器地址
-  * @param  mask: 位掩码
-  * @param  data: 新的位值
+  * @brief  Modify specified bits of MCP2515 register
+  * @param  address: Register address
+  * @param  mask: Bit mask
+  * @param  data: New bit values
   * @retval None
   */
 void MCP2515_ModifyRegister(uint8_t address, uint8_t mask, uint8_t data)
 {
-    MCP2515_CS_Low();                               // 拉低片选
-    MCP2515_SPI_ReadWrite(MCP2515_CMD_BIT_MODIFY);  // 发送位修改指令
-    MCP2515_SPI_ReadWrite(address);                 // 发送寄存器地址
-    MCP2515_SPI_ReadWrite(mask);                    // 发送位掩码
-    MCP2515_SPI_ReadWrite(data);                    // 发送新数据
-    MCP2515_CS_High();                              // 拉高片选
+    MCP2515_CS_Low();                               // Pull down chip select
+    MCP2515_SPI_ReadWrite(MCP2515_CMD_BIT_MODIFY);  // Send bit modify command
+    MCP2515_SPI_ReadWrite(address);                 // Send register address
+    MCP2515_SPI_ReadWrite(mask);                    // Send bit mask
+    MCP2515_SPI_ReadWrite(data);                    // Send new data
+    MCP2515_CS_High();                              // Pull up chip select
 }
 
 /**
-  * @brief  位修改MCP2515寄存器 (与ModifyRegister功能相同)
-  * @param  address: 寄存器地址
-  * @param  mask: 位掩码
-  * @param  data: 新的位值
+  * @brief  Bit modify MCP2515 register (same function as ModifyRegister)
+  * @param  address: Register address
+  * @param  mask: Bit mask
+  * @param  data: New bit values
   * @retval None
   */
 void MCP2515_BitModify(uint8_t address, uint8_t mask, uint8_t data)
 {
-    // 调用ModifyRegister函数，功能完全相同
+    // Call ModifyRegister function, exactly the same functionality
     MCP2515_ModifyRegister(address, mask, data);
 }
 
 /**
-  * @brief  读取多个连续寄存器
-  * @param  address: 起始寄存器地址
-  * @param  buffer: 数据缓冲区
-  * @param  length: 读取长度
+  * @brief  Read multiple consecutive registers
+  * @param  address: Starting register address
+  * @param  buffer: Data buffer
+  * @param  length: Read length
   * @retval None
   */
 void MCP2515_ReadMultipleRegisters(uint8_t address, uint8_t *buffer, uint8_t length)
 {
     uint8_t i;
     
-    MCP2515_CS_Low();                           // 拉低片选
-    MCP2515_SPI_ReadWrite(MCP2515_CMD_READ);    // 发送读指令
-    MCP2515_SPI_ReadWrite(address);             // 发送起始地址
+    MCP2515_CS_Low();                           // Pull down chip select
+    MCP2515_SPI_ReadWrite(MCP2515_CMD_READ);    // Send read command
+    MCP2515_SPI_ReadWrite(address);             // Send starting address
     
     for (i = 0; i < length; i++) {
-        buffer[i] = MCP2515_SPI_ReadWrite(0x00); // 连续读取数据
+        buffer[i] = MCP2515_SPI_ReadWrite(0x00); // Read data continuously
     }
     
-    MCP2515_CS_High();                          // 拉高片选
+    MCP2515_CS_High();                          // Pull up chip select
 }
 
 /**
-  * @brief  写入多个连续寄存器
-  * @param  address: 起始寄存器地址
-  * @param  buffer: 数据缓冲区
-  * @param  length: 写入长度
+  * @brief  Write to multiple consecutive registers
+  * @param  address: Starting register address
+  * @param  buffer: Data buffer
+  * @param  length: Write length
   * @retval None
   */
 void MCP2515_WriteMultipleRegisters(uint8_t address, uint8_t *buffer, uint8_t length)
 {
     uint8_t i;
     
-    MCP2515_CS_Low();                           // 拉低片选
-    MCP2515_SPI_ReadWrite(MCP2515_CMD_WRITE);   // 发送写指令
-    MCP2515_SPI_ReadWrite(address);             // 发送起始地址
+    MCP2515_CS_Low();                           // Pull down chip select
+    MCP2515_SPI_ReadWrite(MCP2515_CMD_WRITE);   // Send write command
+    MCP2515_SPI_ReadWrite(address);             // Send starting address
     
     for (i = 0; i < length; i++) {
-        MCP2515_SPI_ReadWrite(buffer[i]);       // 连续写入数据
+        MCP2515_SPI_ReadWrite(buffer[i]);       // Write data continuously
     }
     
-    MCP2515_CS_High();                          // 拉高片选
+    MCP2515_CS_High();                          // Pull up chip select
 }
 
-/* 基本控制函数 --------------------------------------------------------------*/
+/* Basic control functions --------------------------------------------------------------*/
 
 /**
-  * @brief  复位MCP2515
+  * @brief  Reset MCP2515
   * @param  None
   * @retval None
   */
@@ -384,7 +384,7 @@ void MCP2515_Reset(void)
 {
     printf("[MCP2515-RESET] Starting MCP2515 reset...\r\n");
     
-    // 确保CS引脚初始状态正确
+    // Ensure CS pin initial state is correct
     MCP2515_CS_High();
     osDelay(5);
     
@@ -397,7 +397,7 @@ void MCP2515_Reset(void)
     MCP2515_CS_High();
     printf("[MCP2515-RESET] CS pulled high\r\n");
     
-    osDelay(50);  // 增加延时确保复位完成
+    osDelay(50);  // Increase delay to ensure reset completion
     printf("[MCP2515-RESET] Reset delay completed\r\n");
     
     // 多次读取状态进行验证

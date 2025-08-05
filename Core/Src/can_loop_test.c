@@ -177,9 +177,9 @@ void CAN_LoopTest_ProcessSTM32Message(CAN_RxHeaderTypeDef* header, uint8_t* data
         successful_loops++;
         last_receive_time = current_time;
         
-        printf("[LOOP #%lu] STM32 CAN1 <- Message received from MCP2515 (Loop time: %lu ms)\r\n", 
-               total_loops, loop_time);
-        printf("[SUCCESS] Loop #%lu completed successfully\r\n", total_loops);
+        // printf("[LOOP #%lu] STM32 CAN1 <- Message received from MCP2515 (Loop time: %lu ms)\r\n", 
+        //        total_loops, loop_time);
+        // printf("[SUCCESS] Loop #%lu completed successfully\r\n", total_loops);
         
         // 打印接收到的数据
         // printf("[DATA] Received: ");
@@ -202,7 +202,7 @@ void CAN_LoopTest_ProcessMCP2515Message(MCP2515_CANMessage_t* message)
     {
         uint32_t current_time = HAL_GetTick();
         
-        printf("[RELAY] MCP2515 received message from STM32 CAN1 (Time: %lu ms)\r\n", current_time);
+        // printf("[RELAY] MCP2515 received message from STM32 CAN1 (Time: %lu ms)\r\n", current_time);
         
         // 打印接收到的数据
         // printf("[DATA] MCP2515 received: ");
@@ -215,7 +215,7 @@ void CAN_LoopTest_ProcessMCP2515Message(MCP2515_CANMessage_t* message)
         // MCP2515转发消息给STM32 CAN
         if (CAN_SendLoopMessage_MCP2515(message->data, message->dlc) == HAL_OK)
         {
-            printf("[RELAY] MCP2515 -> Message relayed to STM32 CAN1\r\n");
+            // printf("[RELAY] MCP2515 -> Message relayed to STM32 CAN1\r\n");
         }
         else
         {
@@ -256,7 +256,18 @@ static HAL_StatusTypeDef CAN_SendLoopMessage_STM32(void)
     TxData[7] = (uint8_t)current_time;
     
     // 发送消息
-    return HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
+    HAL_StatusTypeDef status = HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
+    
+    if (status == HAL_OK) {
+        // Print CAN1 transmit log
+        printf("[CAN1-TX] ID:0x%03X, DLC:%d, Data:", (unsigned int)TxHeader.StdId, TxHeader.DLC);
+        for (int i = 0; i < TxHeader.DLC && i < 8; i++) {
+            printf("%02X ", TxData[i]);
+        }
+        printf("\r\n");
+    }
+    
+    return status;
 }
 
 /**

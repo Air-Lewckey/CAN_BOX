@@ -2,8 +2,8 @@
 ../Core/Src/can_loop_test.c:85:6:CAN_LoopTest_Task	24	static
 ../Core/Src/can_loop_test.c:169:6:CAN_LoopTest_ProcessSTM32Message	24	static
 ../Core/Src/can_loop_test.c:199:6:CAN_LoopTest_ProcessMCP2515Message	24	static
-../Core/Src/can_loop_test.c:233:26:CAN_SendLoopMessage_STM32	48	static
-../Core/Src/can_loop_test.c:268:26:CAN_SendLoopMessage_MCP2515	32	static
-../Core/Src/can_loop_test.c:296:13:CAN_PrintLoopStats	16	static
-../Core/Src/can_loop_test.c:318:6:CAN_LoopTest_GetStats	16	static
-../Core/Src/can_loop_test.c:336:6:CAN_LoopTest_ResetStats	4	static
+../Core/Src/can_loop_test.c:233:26:CAN_SendLoopMessage_STM32	56	static
+../Core/Src/can_loop_test.c:279:26:CAN_SendLoopMessage_MCP2515	32	static
+../Core/Src/can_loop_test.c:307:13:CAN_PrintLoopStats	16	static
+../Core/Src/can_loop_test.c:329:6:CAN_LoopTest_GetStats	16	static
+../Core/Src/can_loop_test.c:347:6:CAN_LoopTest_ResetStats	4	static

@@ -1,15 +1,15 @@
 /**
   ******************************************************************************
   * @file    can_dual_node.c
-  * @brief   STM32F407 + WCMCU-230 双CAN节点通信实现
-  * @author  正点原子技术专家
+  * @brief   STM32F407 + WCMCU-230 dual CAN node communication implementation
+  * @author  Alientek Technical Expert
   * @version V1.0
   * @date    2024-12-19
   ******************************************************************************
   * @attention
   *
-  * 本文件实现STM32F407内置CAN控制器与WCMCU-230模块的双节点通信
-  * 包含完整的消息发送、接收、处理和状态监控功能
+  * This file implements dual node communication between STM32F407 built-in CAN controller and WCMCU-230 module
+ * Includes complete message sending, receiving, processing and status monitoring functions
   *
   ******************************************************************************
   */
@@ -28,7 +28,7 @@
 #include <stdbool.h>
 
 /* External variables --------------------------------------------------------*/
-// CAN句柄外部声明（等待IOC重新生成can.c文件）
+// CAN handle external declaration (waiting for IOC to regenerate can.c file)
 extern CAN_HandleTypeDef hcan1;
 
 /* Private typedef -----------------------------------------------------------*/
@@ -36,27 +36,27 @@ extern CAN_HandleTypeDef hcan1;
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 
-/* CAN句柄和消息结构体 */
+/* CAN handle and message structures */
 static CAN_TxHeaderTypeDef TxHeader;
 static CAN_RxHeaderTypeDef RxHeader;
 static uint8_t TxData[8];
 static uint8_t RxData[8];
 static uint32_t TxMailbox;
 
-/* 统计信息 */
+/* Statistics */
 static CAN_DualNode_Stats_t can_stats = {0};
 
-/* 节点状态 */
+/* Node status */
 static CAN_NodeStatus_t wcmcu_status = CAN_NODE_OFFLINE;
 static uint32_t last_heartbeat_time = 0;
 static uint32_t last_send_time = 0;
 
-/* 周期性任务时间戳 */
+/* Periodic task timestamps */
 static uint32_t last_heartbeat_send = 0;
 static uint32_t last_data_request = 0;
 static uint32_t last_status_send = 0;
 
-/* 消息计数器 */
+/* Message counters */
 static uint32_t heartbeat_counter = 0;
 static uint32_t data_request_counter = 0;
 static uint32_t status_counter = 0;
@@ -70,109 +70,109 @@ static void CAN_UpdateErrorStats(void);
 /* Exported functions --------------------------------------------------------*/
 
 /**
-  * @brief  初始化CAN双节点通信
-  * @retval HAL状态
+  * @brief  Initialize CAN dual node communication
+  * @retval HAL status
   */
 HAL_StatusTypeDef CAN_DualNode_Init(void)
 {
     HAL_StatusTypeDef status = HAL_OK;
     
-    // CAN_DEBUG_PRINTF("开始初始化CAN双节点通信...\r\n");
+    // CAN_DEBUG_PRINTF("Starting CAN dual node communication initialization...\r\n");
     
-    // 配置CAN过滤器
+    // Configure CAN filter
     CAN_ConfigFilter();
     
-    // 启动CAN
+    // Start CAN
     status = HAL_CAN_Start(&hcan1);
     if (status != HAL_OK)
     {
-        // CAN_DEBUG_PRINTF("CAN启动失败: %d\r\n", status);
+        // CAN_DEBUG_PRINTF("CAN start failed: %d\r\n", status);
         return status;
     }
     
-    // 激活接收中断
+    // Activate receive interrupt
     status = HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
     if (status != HAL_OK)
     {
-        // CAN_DEBUG_PRINTF("CAN接收中断激活失败: %d\r\n", status);
+        // CAN_DEBUG_PRINTF("CAN receive interrupt activation failed: %d\r\n", status);
         return status;
     }
     
-    // 激活发送完成中断
+    // Activate transmit complete interrupt
     status = HAL_CAN_ActivateNotification(&hcan1, CAN_IT_TX_MAILBOX_EMPTY);
     if (status != HAL_OK)
     {
-        // CAN_DEBUG_PRINTF("CAN发送中断激活失败: %d\r\n", status);
+        // CAN_DEBUG_PRINTF("CAN transmit interrupt activation failed: %d\r\n", status);
         return status;
     }
     
-    // 激活错误中断
+    // Activate error interrupt
     status = HAL_CAN_ActivateNotification(&hcan1, CAN_IT_ERROR | CAN_IT_BUSOFF | CAN_IT_LAST_ERROR_CODE);
     if (status != HAL_OK)
     {
-        // CAN_DEBUG_PRINTF("CAN错误中断激活失败: %d\r\n", status);
+        // CAN_DEBUG_PRINTF("CAN error interrupt activation failed: %d\r\n", status);
         return status;
     }
     
-    // 初始化统计信息
+    // Initialize statistics
     CAN_ResetStats();
     
-    // 设置初始状态
+    // Set initial state
     wcmcu_status = CAN_NODE_OFFLINE;
     
-    // CAN_DEBUG_PRINTF("CAN双节点通信初始化完成\r\n");
-    // CAN_DEBUG_PRINTF("支持的消息类型:\r\n");
-    // CAN_DEBUG_PRINTF("  - 心跳消息 (ID: 0x%03X)\r\n", CAN_HEARTBEAT_ID);
-    // CAN_DEBUG_PRINTF("  - 数据请求 (ID: 0x%03X)\r\n", CAN_DATA_REQUEST_ID);
-    // CAN_DEBUG_PRINTF("  - 数据响应 (ID: 0x%03X)\r\n", CAN_DATA_RESPONSE_ID);
-    // CAN_DEBUG_PRINTF("  - 状态消息 (ID: 0x%03X)\r\n", CAN_STATUS_ID);
-    // CAN_DEBUG_PRINTF("  - 控制指令 (ID: 0x%03X)\r\n", CAN_CONTROL_ID);
+    // CAN_DEBUG_PRINTF("CAN dual node communication initialization completed\r\n");
+    // CAN_DEBUG_PRINTF("Supported message types:\r\n");
+    // CAN_DEBUG_PRINTF("  - Heartbeat message (ID: 0x%03X)\r\n", CAN_HEARTBEAT_ID);
+    // CAN_DEBUG_PRINTF("  - Data request (ID: 0x%03X)\r\n", CAN_DATA_REQUEST_ID);
+    // CAN_DEBUG_PRINTF("  - Data response (ID: 0x%03X)\r\n", CAN_DATA_RESPONSE_ID);
+    // CAN_DEBUG_PRINTF("  - Status message (ID: 0x%03X)\r\n", CAN_STATUS_ID);
+    // CAN_DEBUG_PRINTF("  - Control command (ID: 0x%03X)\r\n", CAN_CONTROL_ID);
     
     return HAL_OK;
 }
 
 /**
-  * @brief  反初始化CAN双节点通信
-  * @retval HAL状态
+  * @brief  Deinitialize CAN dual node communication
+  * @retval HAL status
   */
 HAL_StatusTypeDef CAN_DualNode_DeInit(void)
 {
     HAL_StatusTypeDef status;
     
-    // 停止CAN
+    // Stop CAN
     status = HAL_CAN_Stop(&hcan1);
     if (status != HAL_OK)
     {
-        // CAN_DEBUG_PRINTF("CAN停止失败: %d\r\n", status);
+        // CAN_DEBUG_PRINTF("CAN stop failed: %d\r\n", status);
         return status;
     }
     
-    // 打印最终统计信息
+    // Print final statistics
     // CAN_PrintStats();
     
-    // CAN_DEBUG_PRINTF("CAN双节点通信已停止\r\n");
+    // CAN_DEBUG_PRINTF("CAN dual node communication stopped\r\n");
     return HAL_OK;
 }
 
 /**
-  * @brief  向WCMCU-230发送CAN消息
-  * @param  id: 消息ID
-  * @param  data: 数据指针
-  * @param  len: 数据长度
-  * @retval HAL状态
+  * @brief  Send CAN message to WCMCU-230
+  * @param  id: Message ID
+  * @param  data: Data pointer
+  * @param  len: Data length
+  * @retval HAL status
   */
 HAL_StatusTypeDef CAN_SendToWCMCU(uint32_t id, uint8_t* data, uint8_t len)
 {
     HAL_StatusTypeDef status;
     
-    // 检查参数
+    // Check parameters
     if (data == NULL || len > 8)
     {
-        // CAN_DEBUG_PRINTF("发送参数错误\r\n");
+        // CAN_DEBUG_PRINTF("Send parameter error\r\n");
         return HAL_ERROR;
     }
     
-    // 配置发送头
+    // Configure transmit header
     TxHeader.StdId = id;
     TxHeader.ExtId = 0x00;
     TxHeader.RTR = CAN_RTR_DATA;
@@ -180,20 +180,20 @@ HAL_StatusTypeDef CAN_SendToWCMCU(uint32_t id, uint8_t* data, uint8_t len)
     TxHeader.DLC = len;
     TxHeader.TransmitGlobalTime = DISABLE;
     
-    // 复制数据
+    // Copy data
     memcpy(TxData, data, len);
     
-    // 发送消息
+    // Send message
     status = HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
     
     if (status == HAL_OK)
     {
-        // 打印CAN1发送日志
-        // printf("[CAN1-TX] ID:0x%03X, DLC:%d, Data:", (unsigned int)id, len);
-        // for (int i = 0; i < len && i < 8; i++) {
-        //     printf("%02X ", data[i]);
-        // }
-        // printf("\r\n");
+        // Print CAN1 transmit log
+        printf("[CAN1-TX] ID:0x%03X, DLC:%d, Data:", (unsigned int)id, len);
+        for (int i = 0; i < len && i < 8; i++) {
+            printf("%02X ", data[i]);
+        }
+        printf("\r\n");
         
         CAN_UpdateTxStats();
         last_send_time = CAN_GET_TIMESTAMP();
@@ -201,29 +201,29 @@ HAL_StatusTypeDef CAN_SendToWCMCU(uint32_t id, uint8_t* data, uint8_t len)
     else
     {
         CAN_UpdateErrorStats();
-        // CAN_DEBUG_PRINTF("CAN消息发送失败: %d\r\n", status);
+        // CAN_DEBUG_PRINTF("CAN message send failed: %d\r\n", status);
     }
     
     return status;
 }
 
 /**
-  * @brief  发送心跳消息
-  * @retval HAL状态
+  * @brief  Send heartbeat message
+  * @retval HAL status
   */
 HAL_StatusTypeDef CAN_SendHeartbeat(void)
 {
     uint8_t heartbeat_data[CAN_HEARTBEAT_LEN];
     uint32_t timestamp = CAN_GET_TIMESTAMP();
     
-    // 构造心跳数据
-    heartbeat_data[0] = (CAN_HEARTBEAT_MAGIC >> 8) & 0xFF;  // 魔数高字节
-    heartbeat_data[1] = CAN_HEARTBEAT_MAGIC & 0xFF;         // 魔数低字节
-    heartbeat_data[2] = (heartbeat_counter >> 8) & 0xFF;    // 计数器高字节
-    heartbeat_data[3] = heartbeat_counter & 0xFF;           // 计数器低字节
+    // Construct heartbeat data
+    heartbeat_data[0] = (CAN_HEARTBEAT_MAGIC >> 8) & 0xFF;  // Magic number high byte
+    heartbeat_data[1] = CAN_HEARTBEAT_MAGIC & 0xFF;         // Magic number low byte
+    heartbeat_data[2] = (heartbeat_counter >> 8) & 0xFF;    // Counter high byte
+    heartbeat_data[3] = heartbeat_counter & 0xFF;           // Counter low byte
     
-    // 添加时间戳信息到心跳数据中（如果有额外空间）
-    (void)timestamp;  // 标记变量已使用，避免编译警告
+    // Add timestamp information to heartbeat data (if extra space available)
+    (void)timestamp;  // Mark variable as used to avoid compilation warning
     
     heartbeat_counter++;
     can_stats.heartbeat_count++;
@@ -232,18 +232,18 @@ HAL_StatusTypeDef CAN_SendHeartbeat(void)
 }
 
 /**
-  * @brief  发送数据请求
-  * @param  req_type: 请求类型
-  * @param  req_param: 请求参数
-  * @retval HAL状态
+  * @brief  Send data request
+  * @param  req_type: Request type
+  * @param  req_param: Request parameter
+  * @retval HAL status
   */
 HAL_StatusTypeDef CAN_SendDataRequest(uint8_t req_type, uint8_t req_param)
 {
     uint8_t request_data[CAN_DATA_REQUEST_LEN];
     
-    // 构造请求数据
-    request_data[0] = req_type;   // 请求类型
-    request_data[1] = req_param;  // 请求参数
+    // Construct request data
+    request_data[0] = req_type;   // Request type
+    request_data[1] = req_param;  // Request parameter
     
     data_request_counter++;
     can_stats.data_req_count++;
@@ -252,25 +252,25 @@ HAL_StatusTypeDef CAN_SendDataRequest(uint8_t req_type, uint8_t req_param)
 }
 
 /**
-  * @brief  发送数据响应
-  * @param  data: 响应数据
-  * @param  len: 数据长度
-  * @retval HAL状态
+  * @brief  Send data response
+  * @param  data: Response data
+  * @param  len: Data length
+  * @retval HAL status
   */
 HAL_StatusTypeDef CAN_SendDataResponse(uint8_t* data, uint8_t len)
 {
     uint8_t response_data[CAN_DATA_RESPONSE_LEN];
     
-    // 检查长度
+    // Check length
     if (len > CAN_DATA_RESPONSE_LEN)
     {
         len = CAN_DATA_RESPONSE_LEN;
     }
     
-    // 复制数据
+    // Copy data
     memcpy(response_data, data, len);
     
-    // 如果数据不足8字节，填充0
+    // If data is less than 8 bytes, fill with 0
     if (len < CAN_DATA_RESPONSE_LEN)
     {
         memset(&response_data[len], 0, CAN_DATA_RESPONSE_LEN - len);
@@ -282,21 +282,21 @@ HAL_StatusTypeDef CAN_SendDataResponse(uint8_t* data, uint8_t len)
 }
 
 /**
-  * @brief  发送状态消息
-  * @retval HAL状态
+  * @brief  Send status message
+  * @retval HAL status
   */
 HAL_StatusTypeDef CAN_SendStatusMessage(void)
 {
     uint8_t status_data[CAN_STATUS_LEN];
     uint32_t timestamp = CAN_GET_TIMESTAMP();
     
-    // 构造状态数据
-    status_data[0] = (CAN_STATUS_MAGIC >> 8) & 0xFF;        // 魔数高字节
-    status_data[1] = CAN_STATUS_MAGIC & 0xFF;               // 魔数低字节
-    status_data[2] = (uint8_t)wcmcu_status;                 // 节点状态
-    status_data[3] = (status_counter >> 8) & 0xFF;          // 状态计数器高字节
-    status_data[4] = status_counter & 0xFF;                 // 状态计数器低字节
-    status_data[5] = (timestamp / 1000) & 0xFF;             // 运行时间(秒)
+    // Construct status data
+    status_data[0] = (CAN_STATUS_MAGIC >> 8) & 0xFF;        // Magic number high byte
+    status_data[1] = CAN_STATUS_MAGIC & 0xFF;               // Magic number low byte
+    status_data[2] = (uint8_t)wcmcu_status;                 // Node status
+    status_data[3] = (status_counter >> 8) & 0xFF;          // Status counter high byte
+    status_data[4] = status_counter & 0xFF;                 // Status counter low byte
+    status_data[5] = (timestamp / 1000) & 0xFF;             // Runtime (seconds)
     
     status_counter++;
     
@@ -304,65 +304,62 @@ HAL_StatusTypeDef CAN_SendStatusMessage(void)
 }
 
 /**
-  * @brief  发送控制指令
-  * @param  cmd: 控制命令
-  * @param  param: 命令参数
-  * @retval HAL状态
+  * @brief  Send control command
+  * @param  cmd: Control command
+  * @param  param: Command parameter
+  * @retval HAL status
   */
 HAL_StatusTypeDef CAN_SendControlCommand(uint16_t cmd, uint16_t param)
 {
     uint8_t control_data[CAN_CONTROL_LEN];
     
-    // 构造控制数据
-    control_data[0] = (CAN_CONTROL_MAGIC >> 8) & 0xFF;  // 魔数高字节
-    control_data[1] = CAN_CONTROL_MAGIC & 0xFF;         // 魔数低字节
-    control_data[2] = (cmd >> 8) & 0xFF;                // 命令高字节
-    control_data[3] = cmd & 0xFF;                       // 命令低字节
+    // Construct control data
+    control_data[0] = (CAN_CONTROL_MAGIC >> 8) & 0xFF;  // Magic number high byte
+    control_data[1] = CAN_CONTROL_MAGIC & 0xFF;         // Magic number low byte
+    control_data[2] = (cmd >> 8) & 0xFF;                // Command high byte
+    control_data[3] = cmd & 0xFF;                       // Command low byte
     
     return CAN_SendToWCMCU(CAN_CONTROL_ID, control_data, CAN_CONTROL_LEN);
 }
 
 /**
-  * @brief  发送错误消息
-  * @param  error_code: 错误代码
-  * @param  error_data: 错误数据
-  * @retval HAL状态
+  * @brief  Send error message
+  * @param  error_code: Error code
+  * @param  error_data: Error data
+  * @retval HAL status
   */
 HAL_StatusTypeDef CAN_SendErrorMessage(uint8_t error_code, uint8_t error_data)
 {
     uint8_t error_msg[4];
     uint32_t timestamp = CAN_GET_TIMESTAMP();
     
-    // 构造错误消息
-    error_msg[0] = 0xEE;                    // 错误标识
-    error_msg[1] = error_code;              // 错误代码
-    error_msg[2] = error_data;              // 错误数据
-    error_msg[3] = (timestamp / 100) & 0xFF; // 时间戳
+    // Construct error message
+    error_msg[0] = 0xEE;                    // Error identifier
+    error_msg[1] = error_code;              // Error code
+    error_msg[2] = error_data;              // Error data
+    error_msg[3] = (timestamp / 100) & 0xFF; // Timestamp
     
     return CAN_SendToWCMCU(CAN_ERROR_ID, error_msg, 4);
 }
 
 /**
-  * @brief  处理接收到的CAN消息
-  * @param  header: 接收头
-  * @param  data: 接收数据
+  * @brief  Process received CAN message
+  * @param  header: Receive header
+  * @param  data: Receive data
   * @retval None
   */
 void CAN_ProcessReceivedMessage(CAN_RxHeaderTypeDef* header, uint8_t* data)
 {
     CAN_MessageType_t msg_type;
     
-    // 更新接收统计
+    // Update receive statistics
     CAN_UpdateRxStats();
     can_stats.last_rx_time = CAN_GET_TIMESTAMP();
     
-    // 打印接收消息
-    CAN_PrintMessage("接收", header->StdId, data, header->DLC);
-    
-    // 获取消息类型
+    // Get message type
     msg_type = CAN_GetMessageType(header->StdId);
     
-    // 根据消息类型处理
+    // Process according to message type
     switch(msg_type)
     {
         case CAN_MSG_HEARTBEAT:
@@ -390,11 +387,11 @@ void CAN_ProcessReceivedMessage(CAN_RxHeaderTypeDef* header, uint8_t* data)
             break;
             
         default:
-            // CAN_DEBUG_PRINTF("收到未知消息类型: ID=0x%03X\r\n", (unsigned int)header->StdId);
+            // CAN_DEBUG_PRINTF("Received unknown message type: ID=0x%03X\r\n", (unsigned int)header->StdId);
             break;
     }
     
-    // 更新节点状态
+    // Update node status
     if (msg_type != CAN_MSG_UNKNOWN)
     {
         wcmcu_status = CAN_NODE_ONLINE;
@@ -403,9 +400,9 @@ void CAN_ProcessReceivedMessage(CAN_RxHeaderTypeDef* header, uint8_t* data)
 }
 
 /**
-  * @brief  获取消息类型
-  * @param  id: 消息ID
-  * @retval 消息类型
+  * @brief  Get message type
+  * @param  id: Message ID
+  * @retval Message type
   */
 CAN_MessageType_t CAN_GetMessageType(uint32_t id)
 {
@@ -424,16 +421,16 @@ CAN_MessageType_t CAN_GetMessageType(uint32_t id)
         case CAN_ERROR_ID:
             return CAN_MSG_ERROR;
         case CAN_WCMCU_TO_STM32_ID:
-            return CAN_MSG_DATA_RESPONSE;  // WCMCU发送的数据当作响应处理
+            return CAN_MSG_DATA_RESPONSE;  // Data sent by WCMCU is treated as response
         default:
             return CAN_MSG_UNKNOWN;
     }
 }
 
 /**
-  * @brief  处理心跳消息
-  * @param  data: 消息数据
-  * @param  len: 数据长度
+  * @brief  Process heartbeat message
+  * @param  data: Message data
+  * @param  len: Data length
   * @retval None
   */
 void CAN_ProcessHeartbeat(uint8_t* data, uint8_t len)
@@ -445,20 +442,20 @@ void CAN_ProcessHeartbeat(uint8_t* data, uint8_t len)
         
         if (magic == CAN_HEARTBEAT_MAGIC)
         {
-            // CAN_DEBUG_PRINTF("收到WCMCU心跳: 计数器=%d\r\n", counter);
+            // CAN_DEBUG_PRINTF("Received WCMCU heartbeat: counter=%d\r\n", counter);
             wcmcu_status = CAN_NODE_ONLINE;
         }
         else
         {
-            // CAN_DEBUG_PRINTF("心跳消息魔数错误: 0x%04X\r\n", magic);
+            // CAN_DEBUG_PRINTF("Heartbeat message magic number error: 0x%04X\r\n", magic);
         }
     }
 }
 
 /**
-  * @brief  处理数据请求
-  * @param  data: 消息数据
-  * @param  len: 数据长度
+  * @brief  Process data request
+  * @param  data: Message data
+  * @param  len: Data length
   * @retval None
   */
 void CAN_ProcessDataRequest(uint8_t* data, uint8_t len)
@@ -468,14 +465,14 @@ void CAN_ProcessDataRequest(uint8_t* data, uint8_t len)
         uint8_t req_type = data[0];
         uint8_t req_param = data[1];
         
-        // CAN_DEBUG_PRINTF("收到数据请求: 类型=%d, 参数=%d\r\n", req_type, req_param);
+        // CAN_DEBUG_PRINTF("Received data request: type=%d, param=%d\r\n", req_type, req_param);
         
-        // 根据请求类型发送响应
+        // Send response according to request type
         uint8_t response_data[8];
         switch(req_type)
         {
-            case 0x01:  // 请求系统状态
-                response_data[0] = 0x01;  // 响应类型
+            case 0x01:  // Request system status
+                response_data[0] = 0x01;  // Response type
                 response_data[1] = (uint8_t)wcmcu_status;
                 response_data[2] = (can_stats.tx_count >> 8) & 0xFF;
                 response_data[3] = can_stats.tx_count & 0xFF;
@@ -485,10 +482,10 @@ void CAN_ProcessDataRequest(uint8_t* data, uint8_t len)
                 response_data[7] = can_stats.error_count & 0xFF;
                 break;
                 
-            case 0x02:  // 请求时间戳
+            case 0x02:  // Request timestamp
                 {
                     uint32_t timestamp = CAN_GET_TIMESTAMP();
-                    response_data[0] = 0x02;  // 响应类型
+                    response_data[0] = 0x02;  // Response type
                     response_data[1] = (timestamp >> 24) & 0xFF;
                     response_data[2] = (timestamp >> 16) & 0xFF;
                     response_data[3] = (timestamp >> 8) & 0xFF;
@@ -500,7 +497,7 @@ void CAN_ProcessDataRequest(uint8_t* data, uint8_t len)
                 break;
                 
             default:
-                response_data[0] = 0xFF;  // 未知请求
+                response_data[0] = 0xFF;  // Unknown request
                 response_data[1] = req_type;
                 memset(&response_data[2], 0, 6);
                 break;
@@ -511,27 +508,27 @@ void CAN_ProcessDataRequest(uint8_t* data, uint8_t len)
 }
 
 /**
-  * @brief  处理数据响应
+  * @brief  Process data response
   * @param  data: 消息数据
-  * @param  len: 数据长度
+  * @param  len: Data length
   * @retval None
   */
 void CAN_ProcessDataResponse(uint8_t* data, uint8_t len)
 {
-    // CAN_DEBUG_PRINTF("收到WCMCU数据响应: ");
+    // CAN_DEBUG_PRINTF("Received WCMCU data response: ");
     // for(int i = 0; i < len; i++)
     // {
     //     printf("%02X ", data[i]);
     // }
     // printf("\r\n");
     
-    // 解析响应数据
+    // Parse response data
     if (len >= 1)
     {
         uint8_t resp_type = data[0];
         switch(resp_type)
         {
-            case 0x01:  // 系统状态响应
+            case 0x01:  // System status response
                 if (len >= 8)
                 {
                     uint8_t node_status = data[1];
@@ -539,30 +536,30 @@ void CAN_ProcessDataResponse(uint8_t* data, uint8_t len)
                     uint16_t rx_count = (data[4] << 8) | data[5];
                     uint16_t error_count = (data[6] << 8) | data[7];
                     
-                    // CAN_DEBUG_PRINTF("WCMCU状态: %d, TX:%d, RX:%d, ERR:%d\r\n", 
+                    // CAN_DEBUG_PRINTF("WCMCU status: %d, TX:%d, RX:%d, ERR:%d\r\n", 
                     //                node_status, tx_count, rx_count, error_count);
                 }
                 break;
                 
-            case 0x02:  // 时间戳响应
+            case 0x02:  // Timestamp response
                 if (len >= 5)
                 {
                     uint32_t wcmcu_time = (data[1] << 24) | (data[2] << 16) | (data[3] << 8) | data[4];
-                    // CAN_DEBUG_PRINTF("WCMCU时间戳: %lu ms\r\n", wcmcu_time);
+                    // CAN_DEBUG_PRINTF("WCMCU timestamp: %lu ms\r\n", wcmcu_time);
                 }
                 break;
                 
             default:
-                // CAN_DEBUG_PRINTF("未知响应类型: %d\r\n", resp_type);
+                // CAN_DEBUG_PRINTF("Unknown response type: %d\r\n", resp_type);
                 break;
         }
     }
 }
 
 /**
-  * @brief  处理状态消息
+  * @brief  Process status message
   * @param  data: 消息数据
-  * @param  len: 数据长度
+  * @param  len: Data length
   * @retval None
   */
 void CAN_ProcessStatusMessage(uint8_t* data, uint8_t len)
@@ -576,14 +573,14 @@ void CAN_ProcessStatusMessage(uint8_t* data, uint8_t len)
         
         if (magic == CAN_STATUS_MAGIC)
         {
-            // CAN_DEBUG_PRINTF("WCMCU状态: %d, 计数器: %d, 运行时间: %d秒\r\n", 
+            // CAN_DEBUG_PRINTF("WCMCU status: %d, counter: %d, runtime: %d seconds\r\n", 
             //                status, counter, runtime);
         }
     }
 }
 
 /**
-  * @brief  处理控制指令
+  * @brief  Process control command
   * @param  data: 消息数据
   * @param  len: 数据长度
   * @retval None
@@ -597,26 +594,26 @@ void CAN_ProcessControlCommand(uint8_t* data, uint8_t len)
         
         if (magic == CAN_CONTROL_MAGIC)
         {
-            // CAN_DEBUG_PRINTF("收到控制指令: 0x%04X\r\n", cmd);
+            // CAN_DEBUG_PRINTF("Received control command: 0x%04X\r\n", cmd);
             
-            // 处理控制指令
+            // Process control command
             switch(cmd)
             {
-                case 0x0001:  // 重置统计
+                case 0x0001:  // Reset statistics
                     CAN_ResetStats();
-                    // CAN_DEBUG_PRINTF("统计信息已重置\r\n");
+                    // CAN_DEBUG_PRINTF("Statistics have been reset\r\n");
                     break;
                     
-                case 0x0002:  // 打印统计
+                case 0x0002:  // Print statistics
                     CAN_PrintStats();
                     break;
                     
-                case 0x0003:  // 打印状态
+                case 0x0003:  // Print status
                     CAN_PrintNodeStatus();
                     break;
                     
                 default:
-                    // CAN_DEBUG_PRINTF("未知控制指令: 0x%04X\r\n", cmd);
+                    // CAN_DEBUG_PRINTF("Unknown control command: 0x%04X\r\n", cmd);
                     break;
             }
         }
@@ -624,7 +621,7 @@ void CAN_ProcessControlCommand(uint8_t* data, uint8_t len)
 }
 
 /**
-  * @brief  处理错误消息
+  * @brief  Process error message
   * @param  data: 消息数据
   * @param  len: 数据长度
   * @retval None
@@ -636,17 +633,17 @@ void CAN_ProcessErrorMessage(uint8_t* data, uint8_t len)
         uint8_t error_code = data[1];
         uint8_t error_data = data[2];
         
-        // CAN_DEBUG_PRINTF("收到错误消息: 代码=0x%02X, 数据=0x%02X\r\n", 
+        // CAN_DEBUG_PRINTF("Received error message: code=0x%02X, data=0x%02X\r\n", 
         //                error_code, error_data);
         
-        // 更新节点状态
+        // Update node status
         wcmcu_status = CAN_NODE_ERROR;
     }
 }
 
 /**
-  * @brief  获取WCMCU节点状态
-  * @retval 节点状态
+  * @brief  Get WCMCU node status
+  * @retval Node status
   */
 CAN_NodeStatus_t CAN_GetWCMCUStatus(void)
 {
@@ -654,26 +651,26 @@ CAN_NodeStatus_t CAN_GetWCMCUStatus(void)
 }
 
 /**
-  * @brief  更新节点状态
+  * @brief  Update node status
   * @retval None
   */
 void CAN_UpdateNodeStatus(void)
 {
     uint32_t current_time = CAN_GET_TIMESTAMP();
     
-    // 检查超时
+    // Check timeout
     if (wcmcu_status == CAN_NODE_ONLINE)
     {
         if (CAN_IS_TIMEOUT(last_heartbeat_time, CAN_TIMEOUT_PERIOD))
         {
             wcmcu_status = CAN_NODE_TIMEOUT;
-            // CAN_DEBUG_PRINTF("WCMCU节点超时\r\n");
+            // CAN_DEBUG_PRINTF("WCMCU node timeout\r\n");
         }
     }
 }
 
 /**
-  * @brief  检查超时
+  * @brief  Check timeout
   * @retval None
   */
 void CAN_CheckTimeout(void)
@@ -682,7 +679,7 @@ void CAN_CheckTimeout(void)
 }
 
 /**
-  * @brief  重置统计信息
+  * @brief  Reset statistics
   * @retval None
   */
 void CAN_ResetStats(void)
@@ -694,12 +691,12 @@ void CAN_ResetStats(void)
     data_request_counter = 0;
     status_counter = 0;
     
-    // CAN_DEBUG_PRINTF("统计信息已重置\r\n");
+    // CAN_DEBUG_PRINTF("Statistics have been reset\r\n");
 }
 
 /**
-  * @brief  获取统计信息
-  * @retval 统计信息指针
+  * @brief  Get statistics
+  * @retval Statistics pointer
   */
 CAN_DualNode_Stats_t* CAN_GetStats(void)
 {
@@ -707,7 +704,7 @@ CAN_DualNode_Stats_t* CAN_GetStats(void)
 }
 
 /**
-  * @brief  打印统计信息
+  * @brief  Print statistics
   * @retval None
   */
 void CAN_PrintStats(void)
@@ -715,38 +712,38 @@ void CAN_PrintStats(void)
     uint32_t elapsed = CAN_GET_TIMESTAMP() - can_stats.start_time;
     float success_rate = CAN_GetSuccessRate();
     
-    // printf("\r\n=== CAN双节点通信统计 ===\r\n");
-    // printf("运行时间: %lu ms (%.1f 秒)\r\n", elapsed, elapsed / 1000.0f);
-    // printf("发送消息: %lu\r\n", can_stats.tx_count);
-    // printf("接收消息: %lu\r\n", can_stats.rx_count);
-    // printf("错误次数: %lu\r\n", can_stats.error_count);
-    // printf("心跳消息: %lu\r\n", can_stats.heartbeat_count);
-    // printf("数据请求: %lu\r\n", can_stats.data_req_count);
-    // printf("数据响应: %lu\r\n", can_stats.data_resp_count);
-    // printf("通信成功率: %.2f%%\r\n", success_rate);
-    // printf("最后接收时间: %lu ms\r\n", can_stats.last_rx_time);
+    // printf("\r\n=== CAN Dual Node Communication Statistics ===\r\n");
+    // printf("Runtime: %lu ms (%.1f seconds)\r\n", elapsed, elapsed / 1000.0f);
+    // printf("Sent messages: %lu\r\n", can_stats.tx_count);
+    // printf("Received messages: %lu\r\n", can_stats.rx_count);
+    // printf("Error count: %lu\r\n", can_stats.error_count);
+    // printf("Heartbeat messages: %lu\r\n", can_stats.heartbeat_count);
+    // printf("Data requests: %lu\r\n", can_stats.data_req_count);
+    // printf("Data responses: %lu\r\n", can_stats.data_resp_count);
+    // printf("Communication success rate: %.2f%%\r\n", success_rate);
+    // printf("Last receive time: %lu ms\r\n", can_stats.last_rx_time);
     // printf("========================\r\n\r\n");
 }
 
 /**
-  * @brief  打印节点状态
+  * @brief  Print node status
   * @retval None
   */
 void CAN_PrintNodeStatus(void)
 {
-    const char* status_str[] = {"离线", "在线", "错误", "超时"};
+    const char* status_str[] = {"Offline", "Online", "Error", "Timeout"};
     
-    // printf("\r\n=== 节点状态信息 ===\r\n");
-    // printf("WCMCU-230状态: %s\r\n", status_str[wcmcu_status]);
-    // printf("最后心跳时间: %lu ms\r\n", last_heartbeat_time);
-    // printf("最后发送时间: %lu ms\r\n", last_send_time);
-    // printf("当前时间: %lu ms\r\n", CAN_GET_TIMESTAMP());
+    // printf("\r\n=== Node Status Information ===\r\n");
+    // printf("WCMCU-230 Status: %s\r\n", status_str[wcmcu_status]);
+    // printf("Last heartbeat time: %lu ms\r\n", last_heartbeat_time);
+    // printf("Last send time: %lu ms\r\n", last_send_time);
+    // printf("Current time: %lu ms\r\n", CAN_GET_TIMESTAMP());
     // printf("==================\r\n\r\n");
 }
 
 /**
-  * @brief  获取通信成功率
-  * @retval 成功率(百分比)
+  * @brief  Get communication success rate
+  * @retval Success rate (percentage)
   */
 float CAN_GetSuccessRate(void)
 {
@@ -759,8 +756,8 @@ float CAN_GetSuccessRate(void)
 }
 
 /**
-  * @brief  获取总线负载
-  * @retval 总线负载(百分比)
+  * @brief  Get bus load
+  * @retval Bus load (percentage)
   */
 uint32_t CAN_GetBusLoad(void)
 {
@@ -770,65 +767,65 @@ uint32_t CAN_GetBusLoad(void)
         return 0;
     }
     
-    // 简单估算: 每个消息约1ms传输时间
+    // Simple estimation: approximately 1ms transmission time per message
     uint32_t total_msg_time = (can_stats.tx_count + can_stats.rx_count) * 1;
     return (total_msg_time * 100) / elapsed;
 }
 
 /**
-  * @brief  CAN双节点通信任务
-  * @param  argument: 任务参数
+  * @brief  CAN dual node communication task
+  * @param  argument: Task parameter
   * @retval None
   */
 void CAN_DualNodeTask(void const * argument)
 {
-    // 初始化CAN双节点通信
+    // Initialize CAN dual node communication
     if (CAN_DualNode_Init() != HAL_OK)
     {
-        // CAN_DEBUG_PRINTF("CAN双节点通信初始化失败\r\n");
+        // CAN_DEBUG_PRINTF("CAN dual node communication initialization failed\r\n");
         return;
     }
     
-    // CAN_DEBUG_PRINTF("CAN双节点通信任务启动\r\n");
+    // CAN_DEBUG_PRINTF("CAN dual node communication task started\r\n");
     
     for(;;)
     {
-        // 周期性发送
+        // Periodic send
         CAN_PeriodicSend();
         
-        // 周期性检查
+        // Periodic check
         CAN_PeriodicCheck();
         
-        // 任务延时
-        osDelay(100);  // 100ms周期
+        // Task delay
+        osDelay(100);  // 100ms period
     }
 }
 
 /**
-  * @brief  周期性发送
+  * @brief  Periodic send
   * @retval None
   */
 void CAN_PeriodicSend(void)
 {
     uint32_t current_time = CAN_GET_TIMESTAMP();
     
-    // 发送心跳消息
+    // Send heartbeat message
     if (CAN_IS_TIMEOUT(last_heartbeat_send, CAN_HEARTBEAT_PERIOD))
     {
         CAN_SendHeartbeat();
         last_heartbeat_send = current_time;
     }
     
-    // 发送数据请求
+    // Send data request
     if (CAN_IS_TIMEOUT(last_data_request, CAN_DATA_REQUEST_PERIOD))
     {
         static uint8_t req_type = 1;
         CAN_SendDataRequest(req_type, 0x00);
-        req_type = (req_type == 1) ? 2 : 1;  // 交替请求不同类型
+        req_type = (req_type == 1) ? 2 : 1;  // Alternate request different types
         last_data_request = current_time;
     }
     
-    // 发送状态消息
+    // Send status message
     if (CAN_IS_TIMEOUT(last_status_send, CAN_STATUS_PERIOD))
     {
         CAN_SendStatusMessage();
@@ -837,7 +834,7 @@ void CAN_PeriodicSend(void)
 }
 
 /**
-  * @brief  周期性检查
+  * @brief  Periodic check
   * @retval None
   */
 void CAN_PeriodicCheck(void)
@@ -845,10 +842,10 @@ void CAN_PeriodicCheck(void)
     static uint32_t last_stats_print = 0;
     uint32_t current_time = CAN_GET_TIMESTAMP();
     
-    // 检查超时
+    // Check timeout
     CAN_CheckTimeout();
     
-    // 定期打印统计信息(每30秒)
+    // Print statistics periodically (every 30 seconds)
     if (CAN_IS_TIMEOUT(last_stats_print, 30000))
     {
         CAN_PrintStats();
@@ -858,10 +855,10 @@ void CAN_PeriodicCheck(void)
 }
 
 /**
-  * @brief  打印消息
-  * @param  prefix: 前缀字符串
-  * @param  id: 消息ID
-  * @param  data: 数据指针
+  * @brief  Print message
+  * @param  prefix: Prefix string
+  * @param  id: Message ID
+  * @param  data: Data pointer
   * @param  len: 数据长度
   * @retval None
   */
@@ -876,10 +873,10 @@ void CAN_PrintMessage(const char* prefix, uint32_t id, uint8_t* data, uint8_t le
 }
 
 /**
-  * @brief  计算校验和
-  * @param  data: 数据指针
-  * @param  len: 数据长度
-  * @retval 校验和
+  * @brief  Calculate checksum
+  * @param  data: Data pointer
+  * @param  len: Data length
+  * @retval Checksum
   */
 uint16_t CAN_CalculateChecksum(uint8_t* data, uint8_t len)
 {
@@ -892,11 +889,11 @@ uint16_t CAN_CalculateChecksum(uint8_t* data, uint8_t len)
 }
 
 /**
-  * @brief  验证校验和
-  * @param  data: 数据指针
-  * @param  len: 数据长度
-  * @param  checksum: 期望的校验和
-  * @retval 验证结果
+  * @brief  Verify checksum
+  * @param  data: Data pointer
+  * @param  len: Data length
+  * @param  checksum: Expected checksum
+  * @retval Verification result
   */
 bool CAN_VerifyChecksum(uint8_t* data, uint8_t len, uint16_t checksum)
 {
@@ -904,10 +901,10 @@ bool CAN_VerifyChecksum(uint8_t* data, uint8_t len, uint16_t checksum)
 }
 
 /**
-  * @brief  格式化时间戳
-  * @param  timestamp: 时间戳
-  * @param  buffer: 输出缓冲区
-  * @param  size: 缓冲区大小
+  * @brief  Format timestamp
+  * @param  timestamp: Timestamp
+  * @param  buffer: Output buffer
+  * @param  size: Buffer size
   * @retval None
   */
 void CAN_FormatTimestamp(uint32_t timestamp, char* buffer, size_t size)
@@ -925,14 +922,14 @@ void CAN_FormatTimestamp(uint32_t timestamp, char* buffer, size_t size)
 /* Private functions ---------------------------------------------------------*/
 
 /**
-  * @brief  配置CAN过滤器
+  * @brief  Configure CAN filter
   * @retval None
   */
 static void CAN_ConfigFilter(void)
 {
     CAN_FilterTypeDef sFilterConfig;
     
-    // 配置过滤器接受所有消息
+    // Configure filter to accept all messages
     sFilterConfig.FilterBank = 0;
     sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
     sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
@@ -951,7 +948,7 @@ static void CAN_ConfigFilter(void)
 }
 
 /**
-  * @brief  更新发送统计
+  * @brief  Update transmit statistics
   * @retval None
   */
 static void CAN_UpdateTxStats(void)
@@ -960,7 +957,7 @@ static void CAN_UpdateTxStats(void)
 }
 
 /**
-  * @brief  更新接收统计
+  * @brief  Update receive statistics
   * @retval None
   */
 static void CAN_UpdateRxStats(void)
@@ -969,7 +966,7 @@ static void CAN_UpdateRxStats(void)
 }
 
 /**
-  * @brief  更新错误统计
+  * @brief  Update error statistics
   * @retval None
   */
 static void CAN_UpdateErrorStats(void)
@@ -980,8 +977,8 @@ static void CAN_UpdateErrorStats(void)
 /* Interrupt Callbacks -------------------------------------------------------*/
 
 /**
-  * @brief  CAN接收FIFO0消息挂起回调
-  * @param  hcan: CAN句柄指针
+  * @brief  CAN receive FIFO0 message pending callback
+  * @param  hcan: CAN handle pointer
   * @retval None
   */
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
@@ -990,64 +987,75 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
     {
         if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK)
         {
-            // 打印CAN1接收到的消息
+            // Print CAN1 received message
             printf("[CAN1-RX] ID:0x%03X, DLC:%d, Data:", (unsigned int)RxHeader.StdId, RxHeader.DLC);
             for (int i = 0; i < RxHeader.DLC && i < 8; i++) {
-                printf("%02X ", RxData[i]);
+                if (i == RxHeader.DLC - 1 || i == 7) {
+                    printf("%02X", RxData[i]);  // 最后一个字节不加空格
+                } else {
+                    printf("%02X ", RxData[i]); // 其他字节后面加空格
+                }
             }
             printf("\r\n");
             
-            // 处理双节点通信消息
+            // Process dual node communication message
             CAN_ProcessReceivedMessage(&RxHeader, RxData);
             
-            // 处理循环测试消息
+            // Process loop test message
             CAN_LoopTest_ProcessSTM32Message(&RxHeader, RxData);
             
-            // CAN1桥接测试消息处理已禁用
+            // CAN1 bridge test message processing is disabled
             // CAN1_CAN2_BridgeTest_ProcessCAN1Reception(&RxHeader, RxData);
         }
     }
-    else if (hcan->Instance == CAN2)
-    {
-        if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK)
-        {
-            // CAN2仅作为接收器，打印所有CAN总线上的报文
-            CAN2_Demo_ProcessReceivedMessage(&RxHeader, RxData);
-            
-            // 环回测试已禁用 - CAN2仅接收
-            // CAN2_LoopbackTest_ProcessMessage(&RxHeader, RxData);
-        }
-    }
+    // CAN2相关处理已禁用 - 只使用CAN1
+    // else if (hcan->Instance == CAN2)
+    // {
+    //     printf("[CAN2-IRQ] Interrupt triggered at %lu\r\n", HAL_GetTick());
+    //     if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, RxData) == HAL_OK)
+    //     {
+    //         printf("[CAN2-IRQ] Message received successfully\r\n");
+    //         // CAN2 only acts as receiver, prints all messages on CAN bus
+    //         CAN2_Demo_ProcessReceivedMessage(&RxHeader, RxData);
+    //         
+    //         // Loopback test is disabled - CAN2 only receives
+    //         // CAN2_LoopbackTest_ProcessMessage(&RxHeader, RxData);
+    //     }
+    //     else
+    //     {
+    //         printf("[CAN2-IRQ] Failed to get message from FIFO0\r\n");
+    //     }
+    // }
 }
 
 /**
-  * @brief  CAN发送邮箱0完成回调
-  * @param  hcan: CAN句柄指针
+  * @brief  CAN transmit mailbox 0 complete callback
+  * @param  hcan: CAN handle pointer
   * @retval None
   */
 void HAL_CAN_TxMailbox0CompleteCallback(CAN_HandleTypeDef *hcan)
 {
     if (hcan->Instance == CAN1)
     {
-        // 发送完成处理
+        // Transmission complete handling
     }
 }
 
 /**
-  * @brief  CAN发送邮箱1完成回调
-  * @param  hcan: CAN句柄指针
+  * @brief  CAN transmit mailbox 1 complete callback
+  * @param  hcan: CAN handle pointer
   * @retval None
   */
 void HAL_CAN_TxMailbox1CompleteCallback(CAN_HandleTypeDef *hcan)
 {
     if (hcan->Instance == CAN1)
     {
-        // 发送完成处理
+        // Transmission complete handling
     }
 }
 
 /**
-  * @brief  CAN发送邮箱2完成回调
+  * @brief  CAN transmit mailbox 2 complete callback
   * @param  hcan: CAN句柄指针
   * @retval None
   */
@@ -1055,12 +1063,12 @@ void HAL_CAN_TxMailbox2CompleteCallback(CAN_HandleTypeDef *hcan)
 {
     if (hcan->Instance == CAN1)
     {
-        // 发送完成处理
+        // Transmission complete handling
     }
 }
 
 /**
-  * @brief  CAN错误回调
+  * @brief  CAN error callback
   * @param  hcan: CAN句柄指针
   * @retval None
   */
@@ -1069,7 +1077,7 @@ void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan)
     if (hcan->Instance == CAN1)
     {
         uint32_t error_code = HAL_CAN_GetError(hcan);
-        // CAN_DEBUG_PRINTF("CAN错误: 0x%08lX\r\n", error_code);
+        // CAN_DEBUG_PRINTF("CAN Error: 0x%08lX\r\n", error_code);
         CAN_UpdateErrorStats();
     }
 }

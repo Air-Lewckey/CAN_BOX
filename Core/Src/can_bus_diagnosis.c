@@ -2,18 +2,18 @@
 /**
   ******************************************************************************
   * @file           : can_bus_diagnosis.c
-  * @brief          : CAN总线连接诊断功能实现
+  * @brief          : CAN bus connection diagnosis implementation
   * @author         : Assistant
   * @version        : V1.0
   * @date           : 2025-01-XX
   ******************************************************************************
   * @attention
   *
-  * 本文件实现CAN总线连接诊断功能，包括：
-  * 1. CAN_H和CAN_L电平检测
-  * 2. 终端电阻检测
-  * 3. 总线负载分析
-  * 4. 连接问题诊断和修复建议
+  * This file implements CAN bus connection diagnosis functions, including:
+ * 1. CAN_H and CAN_L level detection
+ * 2. Termination resistance detection
+ * 3. Bus load analysis
+ * 4. Connection problem diagnosis and repair suggestions
   *
   ******************************************************************************
   */
@@ -29,9 +29,9 @@
 #include "cmsis_os.h"
 
 /* Private defines -----------------------------------------------------------*/
-#define DIAGNOSIS_TIMEOUT_MS    5000    // 诊断超时时间
-#define TEST_MESSAGE_COUNT      10      // 测试消息数量
-#define BUS_IDLE_THRESHOLD      100     // 总线空闲阈值(ms)
+#define DIAGNOSIS_TIMEOUT_MS    5000    // Diagnosis timeout
+#define TEST_MESSAGE_COUNT      10      // Test message count
+#define BUS_IDLE_THRESHOLD      100     // Bus idle threshold (ms)
 
 /* Private variables ---------------------------------------------------------*/
 static CAN_Bus_Diagnosis_t diagnosis_result;
@@ -47,9 +47,9 @@ static void CAN_Bus_GenerateReport(void);
 /* Public functions ----------------------------------------------------------*/
 
 /**
-  * @brief  执行完整的CAN总线诊断
+  * @brief  Perform complete CAN bus diagnosis
   * @param  None
-  * @retval CAN_Bus_Diagnosis_t: 诊断结果
+  * @retval CAN_Bus_Diagnosis_t: Diagnosis result
   */
 CAN_Bus_Diagnosis_t* CAN_Bus_PerformDiagnosis(void)
 {
@@ -64,23 +64,23 @@ CAN_Bus_Diagnosis_t* CAN_Bus_PerformDiagnosis(void)
     // printf("\r\n=== CAN Bus Comprehensive Diagnosis ===\r\n");
     // printf("Starting comprehensive CAN bus analysis...\r\n");
     
-    // 步骤1: 检查电气连接
+    // Step 1: Check electrical connections
     // printf("\r\n--- Step 1: Electrical Connection Check ---\r\n");
     CAN_Bus_CheckElectricalLevels();
     
-    // 步骤2: 测试总线连通性
+    // Step 2: Test bus connectivity
     // printf("\r\n--- Step 2: Bus Connectivity Test ---\r\n");
     CAN_Bus_TestConnectivity();
     
-    // 步骤3: 终端电阻检测
+    // Step 3: Termination resistance detection
     // printf("\r\n--- Step 3: Termination Resistance Check ---\r\n");
     CAN_Bus_TestTermination();
     
-    // 步骤4: 总线负载分析
+    // Step 4: Bus load analysis
     // printf("\r\n--- Step 4: Bus Load Analysis ---\r\n");
     CAN_Bus_AnalyzeBusLoad();
     
-    // 步骤5: 生成诊断报告
+    // Step 5: Generate diagnosis report
     // printf("\r\n--- Step 5: Diagnosis Report ---\r\n");
     CAN_Bus_GenerateReport();
     
@@ -91,15 +91,15 @@ CAN_Bus_Diagnosis_t* CAN_Bus_PerformDiagnosis(void)
 }
 
 /**
-  * @brief  快速CAN总线连接检查
+  * @brief  Quick CAN bus connection check
   * @param  None
-  * @retval uint8_t: 1=连接正常, 0=连接异常
+  * @retval uint8_t: 1=connection normal, 0=connection abnormal
   */
 uint8_t CAN_Bus_QuickCheck(void)
 {
     // printf("\r\n=== Quick CAN Bus Check ===\r\n");
     
-    // 检查MCP2515状态
+    // Check MCP2515 status
     uint8_t canstat = MCP2515_ReadRegister(0x0E);  // CANSTAT
     uint8_t canctrl = MCP2515_ReadRegister(0x0F);  // CANCTRL
     uint8_t eflg = MCP2515_ReadRegister(0x2D);     // EFLG
@@ -107,7 +107,7 @@ uint8_t CAN_Bus_QuickCheck(void)
     // printf("MCP2515 Status: CANSTAT=0x%02X, CANCTRL=0x%02X, EFLG=0x%02X\r\n", 
     //        canstat, canctrl, eflg);
     
-    // 检查是否处于Bus-Off状态
+    // Check if in Bus-Off state
     if (eflg & 0x20) {
         // printf("[ERROR] CAN bus is in Bus-Off state\r\n");
         // printf("[SOLUTION] Check CAN_H and CAN_L connections\r\n");
@@ -115,7 +115,7 @@ uint8_t CAN_Bus_QuickCheck(void)
         return 0;
     }
     
-    // 检查错误计数器
+    // Check error counters
     uint8_t tec = MCP2515_ReadRegister(0x1C);  // TEC
     uint8_t rec = MCP2515_ReadRegister(0x1D);  // REC
     
@@ -134,7 +134,7 @@ uint8_t CAN_Bus_QuickCheck(void)
 /* Private functions ---------------------------------------------------------*/
 
 /**
-  * @brief  测试CAN总线连通性
+  * @brief  Test CAN bus connectivity
   * @param  None
   * @retval None
   */
@@ -142,15 +142,15 @@ static void CAN_Bus_TestConnectivity(void)
 {
     // printf("Testing CAN bus connectivity...\r\n");
     
-    // 记录测试前的错误计数
+    // Record error count before test
     uint8_t tec_before = MCP2515_ReadRegister(0x1C);
     uint8_t rec_before = MCP2515_ReadRegister(0x1D);
     
     // printf("Initial error counters: TEC=%d, REC=%d\r\n", tec_before, rec_before);
     
-    // 发送测试消息
+    // Send test messages
     MCP2515_CANMessage_t test_msg;
-    test_msg.id = 0x7FF;  // 使用最高优先级ID
+    test_msg.id = 0x7FF;  // Use highest priority ID
     test_msg.ide = 0;
     test_msg.rtr = 0;
     test_msg.dlc = 8;
@@ -173,16 +173,16 @@ static void CAN_Bus_TestConnectivity(void)
             // printf("  [ERROR] Send failed\r\n");
         }
         
-        osDelay(100);  // 100ms间隔
+        osDelay(100);  // 100ms interval
     }
     
-    // 记录测试后的错误计数
+    // Record error count after test
     uint8_t tec_after = MCP2515_ReadRegister(0x1C);
     uint8_t rec_after = MCP2515_ReadRegister(0x1D);
     
     // printf("Final error counters: TEC=%d, REC=%d\r\n", tec_after, rec_after);
     
-    // 分析结果
+    // Analyze results
     diagnosis_result.connectivity_test.messages_sent = TEST_MESSAGE_COUNT;
     diagnosis_result.connectivity_test.messages_acked = success_count;
     diagnosis_result.connectivity_test.timeouts = timeout_count;
@@ -204,7 +204,7 @@ static void CAN_Bus_TestConnectivity(void)
 }
 
 /**
-  * @brief  测试终端电阻配置
+  * @brief  Test termination resistance configuration
   * @param  None
   * @retval None
   */
@@ -212,10 +212,10 @@ static void CAN_Bus_TestTermination(void)
 {
     // printf("Testing CAN bus termination...\r\n");
     
-    // 通过发送消息并观察错误计数器变化来推断终端电阻状态
+    // Infer termination resistance status by sending messages and observing error counter changes
     uint8_t eflg_before = MCP2515_ReadRegister(0x2D);
     
-    // 发送一系列消息并监控错误
+    // Send a series of messages and monitor errors
     MCP2515_CANMessage_t term_test_msg;
     term_test_msg.id = 0x123;
     term_test_msg.ide = 0;
@@ -233,7 +233,7 @@ static void CAN_Bus_TestTermination(void)
     
     uint8_t eflg_after = MCP2515_ReadRegister(0x2D);
     
-    // 分析终端电阻状态
+    // Analyze termination resistance status
     if (eflg_after & 0x20) {  // Bus-Off
         // printf("[ERROR] Bus-Off detected - Missing termination resistors\r\n");
         // printf("[SOLUTION] Install 120 ohm resistors between CAN_H and CAN_L\r\n");
@@ -253,7 +253,7 @@ static void CAN_Bus_TestTermination(void)
 }
 
 /**
-  * @brief  分析CAN总线负载
+  * @brief  Analyze CAN bus load
   * @param  None
   * @retval None
   */
@@ -263,9 +263,9 @@ static void CAN_Bus_AnalyzeBusLoad(void)
     
     uint32_t start_time = HAL_GetTick();
     uint32_t message_count = 0;
-    uint32_t analysis_duration = 2000;  // 2秒分析时间
+    uint32_t analysis_duration = 2000;  // 2 second analysis duration
     
-    // 监控接收消息数量
+    // Monitor received message count
     while ((HAL_GetTick() - start_time) < analysis_duration) {
         if (MCP2515_CheckReceive()) {
             MCP2515_CANMessage_t temp_msg;
@@ -276,7 +276,7 @@ static void CAN_Bus_AnalyzeBusLoad(void)
         osDelay(10);
     }
     
-    // 计算消息速率
+    // Calculate message rate
     float messages_per_second = (float)message_count / (analysis_duration / 1000.0f);
     
     // printf("Bus load analysis results:\r\n");
@@ -302,7 +302,7 @@ static void CAN_Bus_AnalyzeBusLoad(void)
 }
 
 /**
-  * @brief  检查CAN总线电气电平
+  * @brief  Check CAN bus electrical levels
   * @param  None
   * @retval None
   */
@@ -310,7 +310,7 @@ static void CAN_Bus_CheckElectricalLevels(void)
 {
     // printf("Checking CAN bus electrical levels...\r\n");
     
-    // 读取MCP2515状态寄存器
+    // Read MCP2515 status registers
     uint8_t canstat = MCP2515_ReadRegister(0x0E);
     uint8_t canctrl = MCP2515_ReadRegister(0x0F);
     uint8_t eflg = MCP2515_ReadRegister(0x2D);
@@ -320,7 +320,7 @@ static void CAN_Bus_CheckElectricalLevels(void)
     // printf("  CANCTRL: 0x%02X\r\n", canctrl);
     // printf("  EFLG: 0x%02X\r\n", eflg);
     
-    // 分析电气状态
+    // Analyze electrical status
     diagnosis_result.electrical.canstat = canstat;
     diagnosis_result.electrical.canctrl = canctrl;
     diagnosis_result.electrical.eflg = eflg;
@@ -357,7 +357,7 @@ static void CAN_Bus_CheckElectricalLevels(void)
 }
 
 /**
-  * @brief  生成诊断报告
+  * @brief  Generate diagnosis report
   * @param  None
   * @retval None
   */
@@ -365,7 +365,7 @@ static void CAN_Bus_GenerateReport(void)
 {
     // printf("\r\n=== CAN Bus Diagnosis Report ===\r\n");
     
-    // 总体状态评估
+    // Overall status assessment
     uint8_t critical_issues = 0;
     uint8_t warnings = 0;
     
@@ -421,7 +421,7 @@ static void CAN_Bus_GenerateReport(void)
     // printf("\r\n--- Bus Load ---\r\n");
     // printf("Message rate: %.1f msg/sec\r\n", diagnosis_result.bus_load.messages_per_second);
     
-    // 总体评估
+    // Overall assessment
     // printf("\r\n--- Overall Assessment ---\r\n");
     if (critical_issues > 0) {
         // printf("🔴 CRITICAL: %d critical issue(s) found\r\n", critical_issues);
@@ -434,7 +434,7 @@ static void CAN_Bus_GenerateReport(void)
         diagnosis_result.overall_status = CAN_DIAGNOSIS_OK;
     }
     
-    // 修复建议
+    // Repair recommendations
     // printf("\r\n--- Repair Recommendations ---\r\n");
     if (diagnosis_result.connectivity_test.status == CAN_BUS_NO_NODES) {
         // printf("1. Connect another CAN node or CAN analyzer\r\n");
@@ -453,9 +453,9 @@ static void CAN_Bus_GenerateReport(void)
 }
 
 /**
-  * @brief  获取诊断结果
+  * @brief  Get diagnosis result
   * @param  None
-  * @retval CAN_Bus_Diagnosis_t*: 诊断结果指针
+  * @retval CAN_Bus_Diagnosis_t*: Diagnosis result pointer
   */
 CAN_Bus_Diagnosis_t* CAN_Bus_GetDiagnosisResult(void)
 {
@@ -463,7 +463,7 @@ CAN_Bus_Diagnosis_t* CAN_Bus_GetDiagnosisResult(void)
 }
 
 /**
-  * @brief  重置诊断结果
+  * @brief  Reset diagnosis result
   * @param  None
   * @retval None
   */

@@ -2,15 +2,15 @@
 /**
   ******************************************************************************
   * @file           : can_app.h
-  * @brief          : CAN应用层头文件
-  * @author         : 正点原子团队
+  * @brief          : CAN application layer header file
+  * @author         : Alientek Team
   * @version        : V1.0
   * @date           : 2025-01-XX
   ******************************************************************************
   * @attention
   *
-  * 本头文件定义了CAN应用层的接口函数、数据结构和常量定义
-  * 提供了完整的CAN通信应用层API
+  * This header file defines interface functions, data structures and constant definitions for CAN application layer
+  * Provides complete CAN communication application layer API
   *
   ******************************************************************************
   */
@@ -28,151 +28,151 @@ extern "C" {
 #include "mcp2515.h"
 #include "cmsis_os.h"
 
-/* 应用层返回值定义 ----------------------------------------------------------*/
-#define CAN_APP_OK              0       // 操作成功
-#define CAN_APP_ERROR           1       // 操作失败
-#define CAN_APP_TIMEOUT         2       // 操作超时
-#define CAN_APP_BUSY            3       // 系统忙
-#define CAN_APP_NOT_INIT        4       // 未初始化
+/* Application layer return value definitions ----------------------------------------------------------*/
+#define CAN_APP_OK              0       // Operation successful
+#define CAN_APP_ERROR           1       // Operation failed
+#define CAN_APP_TIMEOUT         2       // Operation timeout
+#define CAN_APP_BUSY            3       // System busy
+#define CAN_APP_NOT_INIT        4       // Not initialized
 
-/* CAN应用层消息ID定义 -------------------------------------------------------*/
-#define CAN_MSG_HEARTBEAT       0x100   // 心跳消息ID
-#define CAN_MSG_DATA            0x200   // 数据消息ID
-#define CAN_MSG_STATUS          0x300   // 状态消息ID
-#define CAN_MSG_COMMAND         0x400   // 命令消息ID
-#define CAN_MSG_RESPONSE        0x500   // 响应消息ID
-#define CAN_MSG_ERROR           0x600   // 错误消息ID
-#define CAN_MSG_DEBUG           0x700   // 调试消息ID
+/* CAN application layer message ID definitions -------------------------------------------------------*/
+#define CAN_MSG_HEARTBEAT       0x100   // Heartbeat message ID
+#define CAN_MSG_DATA            0x200   // Data message ID
+#define CAN_MSG_STATUS          0x300   // Status message ID
+#define CAN_MSG_COMMAND         0x400   // Command message ID
+#define CAN_MSG_RESPONSE        0x500   // Response message ID
+#define CAN_MSG_ERROR           0x600   // Error message ID
+#define CAN_MSG_DEBUG           0x700   // Debug message ID
 
-/* CAN应用层消息类型定义 -----------------------------------------------------*/
-#define CAN_MSG_TYPE_HEARTBEAT  0x01    // 心跳消息类型
-#define CAN_MSG_TYPE_DATA       0x02    // 数据消息类型
-#define CAN_MSG_TYPE_STATUS     0x03    // 状态消息类型
-#define CAN_MSG_TYPE_COMMAND    0x04    // 命令消息类型
-#define CAN_MSG_TYPE_RESPONSE   0x05    // 响应消息类型
-#define CAN_MSG_TYPE_ERROR      0x06    // 错误消息类型
-#define CAN_MSG_TYPE_DEBUG      0x07    // 调试消息类型
+/* CAN application layer message type definitions -----------------------------------------------------*/
+#define CAN_MSG_TYPE_HEARTBEAT  0x01    // Heartbeat message type
+#define CAN_MSG_TYPE_DATA       0x02    // Data message type
+#define CAN_MSG_TYPE_STATUS     0x03    // Status message type
+#define CAN_MSG_TYPE_COMMAND    0x04    // Command message type
+#define CAN_MSG_TYPE_RESPONSE   0x05    // Response message type
+#define CAN_MSG_TYPE_ERROR      0x06    // Error message type
+#define CAN_MSG_TYPE_DEBUG      0x07    // Debug message type
 
-/* CAN应用层命令定义 ---------------------------------------------------------*/
-#define CAN_CMD_RESET           0x01    // 复位命令
-#define CAN_CMD_START           0x02    // 启动命令
-#define CAN_CMD_STOP            0x03    // 停止命令
-#define CAN_CMD_GET_STATUS      0x04    // 获取状态命令
-#define CAN_CMD_SET_PARAM       0x05    // 设置参数命令
-#define CAN_CMD_GET_PARAM       0x06    // 获取参数命令
-#define CAN_CMD_SELF_TEST       0x07    // 自检命令
-#define CAN_CMD_FIRMWARE_VER    0x08    // 获取固件版本命令
+/* CAN application layer command definitions ---------------------------------------------------------*/
+#define CAN_CMD_RESET           0x01    // Reset command
+#define CAN_CMD_START           0x02    // Start command
+#define CAN_CMD_STOP            0x03    // Stop command
+#define CAN_CMD_GET_STATUS      0x04    // Get status command
+#define CAN_CMD_SET_PARAM       0x05    // Set parameter command
+#define CAN_CMD_GET_PARAM       0x06    // Get parameter command
+#define CAN_CMD_SELF_TEST       0x07    // Self test command
+#define CAN_CMD_FIRMWARE_VER    0x08    // Get firmware version command
 
-/* CAN应用层状态定义 ---------------------------------------------------------*/
-#define CAN_STATUS_IDLE         0x00    // 空闲状态
-#define CAN_STATUS_RUNNING      0x01    // 运行状态
-#define CAN_STATUS_ERROR        0x02    // 错误状态
-#define CAN_STATUS_BUSY         0x03    // 忙状态
-#define CAN_STATUS_INIT         0x04    // 初始化状态
-#define CAN_STATUS_SLEEP        0x05    // 睡眠状态
+/* CAN application layer status definitions ---------------------------------------------------------*/
+#define CAN_STATUS_IDLE         0x00    // Idle status
+#define CAN_STATUS_RUNNING      0x01    // Running status
+#define CAN_STATUS_ERROR        0x02    // Error status
+#define CAN_STATUS_BUSY         0x03    // Busy status
+#define CAN_STATUS_INIT         0x04    // Initialization status
+#define CAN_STATUS_SLEEP        0x05    // Sleep status
 
-/* 数据结构定义 --------------------------------------------------------------*/
+/* Data structure definitions --------------------------------------------------------------*/
 
 /**
-  * @brief  CAN队列消息结构体
+  * @brief  CAN queue message structure
   */
 typedef struct {
-    MCP2515_CANMessage_t message;       // CAN消息
-    uint32_t timestamp;                 // 时间戳
-    uint8_t priority;                   // 优先级 (0-7, 0最高)
-    uint8_t retry_count;                // 重试次数
+    MCP2515_CANMessage_t message;       // CAN message
+    uint32_t timestamp;                 // Timestamp
+    uint8_t priority;                   // Priority (0-7, 0 highest)
+    uint8_t retry_count;                // Retry count
 } CAN_QueueMessage_t;
 
 /**
-  * @brief  CAN应用统计信息结构体
+  * @brief  CAN application statistics structure
   */
 typedef struct {
-    uint32_t tx_count;                  // 发送消息计数
-    uint32_t rx_count;                  // 接收消息计数
-    uint32_t error_count;               // 错误计数
-    uint32_t queue_full_count;          // 队列满计数
-    uint32_t timeout_count;             // 超时计数
-    uint8_t initialized;                // 初始化标志
-    uint8_t current_status;             // 当前状态
-    uint8_t last_error;                 // 最后错误代码
+    uint32_t tx_count;                  // Transmit message count
+    uint32_t rx_count;                  // Receive message count
+    uint32_t error_count;               // Error count
+    uint32_t queue_full_count;          // Queue full count
+    uint32_t timeout_count;             // Timeout count
+    uint8_t initialized;                // Initialization flag
+    uint8_t current_status;             // Current status
+    uint8_t last_error;                 // Last error code
 } CAN_App_Stats_t;
 
 /**
-  * @brief  CAN应用配置结构体
+  * @brief  CAN application configuration structure
   */
 typedef struct {
-    uint8_t baudrate;                   // 波特率设置
-    uint8_t mode;                       // 工作模式
-    uint8_t auto_retry;                 // 自动重试使能
-    uint8_t max_retry;                  // 最大重试次数
-    uint32_t timeout_ms;                // 超时时间(ms)
-    uint8_t filter_enable;              // 过滤器使能
-    uint32_t filter_id;                 // 过滤器ID
-    uint32_t filter_mask;               // 过滤器掩码
+    uint8_t baudrate;                   // Baudrate setting
+    uint8_t mode;                       // Working mode
+    uint8_t auto_retry;                 // Auto retry enable
+    uint8_t max_retry;                  // Maximum retry count
+    uint32_t timeout_ms;                // Timeout time (ms)
+    uint8_t filter_enable;              // Filter enable
+    uint32_t filter_id;                 // Filter ID
+    uint32_t filter_mask;               // Filter mask
 } CAN_App_Config_t;
 
 /**
-  * @brief  CAN心跳消息结构体
+  * @brief  CAN heartbeat message structure
   */
 typedef struct {
-    uint8_t header[2];                  // 消息头 (0xAA, 0x55)
-    uint32_t counter;                   // 计数器
-    uint16_t timestamp;                 // 时间戳
+    uint8_t header[2];                  // Message header (0xAA, 0x55)
+    uint32_t counter;                   // Counter
+    uint16_t timestamp;                 // Timestamp
 } CAN_HeartbeatMsg_t;
 
 /**
-  * @brief  CAN数据消息结构体
+  * @brief  CAN data message structure
   */
 typedef struct {
-    uint8_t header[2];                  // 消息头 (0x12, 0x34)
-    uint8_t data_type;                  // 数据类型
-    uint8_t data_length;                // 数据长度
-    uint8_t data[4];                    // 数据内容
+    uint8_t header[2];                  // Message header (0x12, 0x34)
+    uint8_t data_type;                  // Data type
+    uint8_t data_length;                // Data length
+    uint8_t data[4];                    // Data content
 } CAN_DataMsg_t;
 
 /**
-  * @brief  CAN状态消息结构体
+  * @brief  CAN status message structure
   */
 typedef struct {
-    uint8_t status;                     // 系统状态
-    uint8_t error_code;                 // 错误代码
-    uint16_t voltage;                   // 电压值 (mV)
-    uint16_t temperature;               // 温度值 (0.1°C)
-    uint16_t reserved;                  // 保留字段
+    uint8_t status;                     // System status
+    uint8_t error_code;                 // Error code
+    uint16_t voltage;                   // Voltage value (mV)
+    uint16_t temperature;               // Temperature value (0.1°C)
+    uint16_t reserved;                  // Reserved field
 } CAN_StatusMsg_t;
 
 /**
-  * @brief  CAN命令消息结构体
+  * @brief  CAN command message structure
   */
 typedef struct {
-    uint8_t command;                    // 命令代码
-    uint8_t param_count;                // 参数个数
-    uint8_t params[6];                  // 参数数据
+    uint8_t command;                    // Command code
+    uint8_t param_count;                // Parameter count
+    uint8_t params[6];                  // Parameter data
 } CAN_CommandMsg_t;
 
 /**
-  * @brief  CAN响应消息结构体
+  * @brief  CAN response message structure
   */
 typedef struct {
-    uint8_t command;                    // 对应的命令代码
-    uint8_t result;                     // 执行结果
-    uint8_t data_length;                // 返回数据长度
-    uint8_t data[5];                    // 返回数据
+    uint8_t command;                    // Corresponding command code
+    uint8_t result;                     // Execution result
+    uint8_t data_length;                // Return data length
+    uint8_t data[5];                    // Return data
 } CAN_ResponseMsg_t;
 
-/* 函数声明 ------------------------------------------------------------------*/
+/* Function declarations ------------------------------------------------------------------*/
 
-/* 初始化和配置函数 */
+/* Initialization and configuration functions */
 uint8_t CAN_App_Init(void);
 uint8_t CAN_App_DeInit(void);
 uint8_t CAN_App_Config(CAN_App_Config_t *config);
 uint8_t CAN_App_GetConfig(CAN_App_Config_t *config);
 
-/* 任务主函数 */
+/* Main task functions */
 void CAN_SendTask_Main(void *argument);
 void CAN_ReceiveTask_Main(void *argument);
 
-/* 消息发送函数 */
+/* Message sending functions */
 uint8_t CAN_App_SendMessage(uint32_t id, uint8_t *data, uint8_t length, uint8_t extended);
 uint8_t CAN_App_SendRemoteFrame(uint32_t id, uint8_t dlc, uint8_t extended);
 uint8_t CAN_App_SendHeartbeat(void);
@@ -180,23 +180,23 @@ uint8_t CAN_App_SendStatus(uint8_t status, uint8_t error_code);
 uint8_t CAN_App_SendCommand(uint8_t command, uint8_t *params, uint8_t param_count);
 uint8_t CAN_App_SendResponse(uint8_t command, uint8_t result, uint8_t *data, uint8_t length);
 
-/* 消息接收函数 */
+/* Message receiving functions */
 uint8_t CAN_App_ReceiveMessage(MCP2515_CANMessage_t *message, uint32_t timeout);
 uint8_t CAN_App_CheckReceive(void);
 
-/* 过滤器和掩码设置 */
+/* Filter and mask settings */
 uint8_t CAN_App_SetFilter(uint32_t filter_id, uint32_t mask, uint8_t extended);
 uint8_t CAN_App_SetMultipleFilters(uint32_t *filter_ids, uint32_t *masks, uint8_t count, uint8_t extended);
 uint8_t CAN_App_DisableFilter(void);
 
-/* 状态和统计函数 */
+/* Status and statistics functions */
 void CAN_App_GetStats(CAN_App_Stats_t *stats);
 void CAN_App_ClearStats(void);
 void CAN_App_PrintStatus(void);
 uint8_t CAN_App_GetStatus(void);
 uint8_t CAN_App_GetLastError(void);
 
-/* 控制函数 */
+/* Control functions */
 uint8_t CAN_App_Start(void);
 uint8_t CAN_App_Stop(void);
 uint8_t CAN_App_Reset(void);

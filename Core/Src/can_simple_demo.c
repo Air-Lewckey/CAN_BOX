@@ -248,7 +248,18 @@ static HAL_StatusTypeDef CAN_Demo_SendHeartbeat(void)
     TxData[6] = (uint8_t)(current_time >> 8);
     TxData[7] = (uint8_t)current_time;
     
-    return HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
+    HAL_StatusTypeDef status = HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
+    
+    if (status == HAL_OK) {
+        // Print CAN1 transmit log
+        printf("[CAN1-TX] ID:0x%03X, DLC:%d, Data:", (unsigned int)TxHeader.StdId, TxHeader.DLC);
+        for (int i = 0; i < TxHeader.DLC && i < 8; i++) {
+            printf("%02X ", TxData[i]);
+        }
+        printf("\r\n");
+    }
+    
+    return status;
 }
 
 /**
@@ -278,7 +289,18 @@ static HAL_StatusTypeDef CAN_Demo_SendDataMessage(void)
     TxData[6] = (uint8_t)((data_counter * 789) & 0xFF);  // 模拟压力
     TxData[7] = (uint8_t)((data_counter * 321) & 0xFF);  // 模拟电压
     
-    return HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
+    HAL_StatusTypeDef status = HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
+    
+    if (status == HAL_OK) {
+        // Print CAN1 transmit log
+        printf("[CAN1-TX] ID:0x%03X, DLC:%d, Data:", (unsigned int)TxHeader.StdId, TxHeader.DLC);
+        for (int i = 0; i < TxHeader.DLC && i < 8; i++) {
+            printf("%02X ", TxData[i]);
+        }
+        printf("\r\n");
+    }
+    
+    return status;
 }
 
 /**
@@ -308,7 +330,18 @@ static HAL_StatusTypeDef CAN_Demo_SendStatusMessage(void)
     TxData[6] = (uint8_t)(heartbeat_counter & 0xFF);  // 心跳计数
     TxData[7] = (uint8_t)(data_counter & 0xFF);       // 数据计数
     
-    return HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
+    HAL_StatusTypeDef status = HAL_CAN_AddTxMessage(&hcan1, &TxHeader, TxData, &TxMailbox);
+    
+    if (status == HAL_OK) {
+        // Print CAN1 transmit log
+        printf("[CAN1-TX] ID:0x%03X, DLC:%d, Data:", (unsigned int)TxHeader.StdId, TxHeader.DLC);
+        for (int i = 0; i < TxHeader.DLC && i < 8; i++) {
+            printf("%02X ", TxData[i]);
+        }
+        printf("\r\n");
+    }
+    
+    return status;
 }
 
 /**

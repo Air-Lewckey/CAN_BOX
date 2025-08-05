@@ -188,7 +188,12 @@ void CAN_SendTask_Main(void *argument)
             // 处理队列中的发送请求
             if (MCP2515_SendMessage(&queue_msg.message) == MCP2515_OK) {
                 can_tx_counter++;
-                // printf("Queue message sent successfully, ID: 0x%03X\r\n", (unsigned int)queue_msg.message.id);
+                // Print MCP2515 transmit log
+                printf("[MCP2515-TX] ID:0x%03X, DLC:%d, Data:", (unsigned int)queue_msg.message.id, queue_msg.message.dlc);
+                for (int i = 0; i < queue_msg.message.dlc && i < 8; i++) {
+                    printf("%02X ", queue_msg.message.data[i]);
+                }
+                printf("\r\n");
             } else {
                 can_error_counter++;
                 // printf("Queue message send failed, ID: 0x%03X\r\n", (unsigned int)queue_msg.message.id);
@@ -227,7 +232,12 @@ static void CAN_SendHeartbeat_App(void)
     // 发送心跳消息
     if (MCP2515_SendMessage(&heartbeat) == MCP2515_OK) {
         can_tx_counter++;
-        // printf("Heartbeat message sent successfully [%lu]\r\n", can_tx_counter);
+        // Print MCP2515 transmit log
+        printf("[MCP2515-TX] ID:0x%03X, DLC:%d, Data:", (unsigned int)heartbeat.id, heartbeat.dlc);
+        for (int i = 0; i < heartbeat.dlc && i < 8; i++) {
+            printf("%02X ", heartbeat.data[i]);
+        }
+        printf("\r\n");
     } else {
         can_error_counter++;
         // printf("Heartbeat message send failed\r\n");
@@ -298,7 +308,12 @@ static void CAN_SendStatusMessage_App(void)
     // 发送状态消息
     if (MCP2515_SendMessage(&status_msg) == MCP2515_OK) {
         can_tx_counter++;
-        // printf("Status message sent, system status: %d\r\n", system_status-1);
+        // Print MCP2515 transmit log
+        printf("[MCP2515-TX] ID:0x%03X, DLC:%d, Data:", (unsigned int)status_msg.id, status_msg.dlc);
+        for (int i = 0; i < status_msg.dlc && i < 8; i++) {
+            printf("%02X ", status_msg.data[i]);
+        }
+        printf("\r\n");
     } else {
         can_error_counter++;
         // printf("Status message send failed\r\n");
@@ -339,7 +354,12 @@ static void CAN_SendSensorData(void)
     // 发送传感器数据
     if (MCP2515_SendMessage(&sensor_msg) == MCP2515_OK) {
         can_tx_counter++;
-        // printf("Sensor data sent, value: %d\r\n", sensor_value);
+        // Print MCP2515 transmit log
+        printf("[MCP2515-TX] ID:0x%03X, DLC:%d, Data:", (unsigned int)sensor_msg.id, sensor_msg.dlc);
+        for (int i = 0; i < sensor_msg.dlc && i < 8; i++) {
+            printf("%02X ", sensor_msg.data[i]);
+        }
+        printf("\r\n");
     } else {
         can_error_counter++;
         // printf("Sensor data send failed\r\n");
@@ -373,7 +393,12 @@ static void CAN_SendControlCommand_App(void)
     // 发送控制指令
     if (MCP2515_SendMessage(&control_msg) == MCP2515_OK) {
         can_tx_counter++;
-        // printf("Control command sent, seq: %d, type: %d\r\n", command_seq-1, (command_seq-1) % 4 + 1);
+        // Print MCP2515 transmit log
+        printf("[MCP2515-TX] ID:0x%03X, DLC:%d, Data:", (unsigned int)control_msg.id, control_msg.dlc);
+        for (int i = 0; i < control_msg.dlc && i < 8; i++) {
+            printf("%02X ", control_msg.data[i]);
+        }
+        printf("\r\n");
     } else {
         can_error_counter++;
         // printf("Control command send failed\r\n");
