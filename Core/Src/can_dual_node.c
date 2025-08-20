@@ -364,26 +364,43 @@ void CAN_ProcessReceivedMessage(CAN_RxHeaderTypeDef* header, uint8_t* data)
     {
         case CAN_MSG_HEARTBEAT:
             CAN_ProcessHeartbeat(data, header->DLC);
+            // 发送ACK应答 - Send ACK response
+            CAN_SendAckMessage(header->StdId, 0x01);
             break;
             
         case CAN_MSG_DATA_REQUEST:
             CAN_ProcessDataRequest(data, header->DLC);
+            // 发送ACK应答 - Send ACK response
+            CAN_SendAckMessage(header->StdId, 0x02);
             break;
             
         case CAN_MSG_DATA_RESPONSE:
             CAN_ProcessDataResponse(data, header->DLC);
+            // 发送ACK应答 - Send ACK response
+            CAN_SendAckMessage(header->StdId, 0x03);
             break;
             
         case CAN_MSG_STATUS:
             CAN_ProcessStatusMessage(data, header->DLC);
+            // 发送ACK应答 - Send ACK response
+            CAN_SendAckMessage(header->StdId, 0x04);
             break;
             
         case CAN_MSG_CONTROL:
             CAN_ProcessControlCommand(data, header->DLC);
+            // 发送ACK应答 - Send ACK response
+            CAN_SendAckMessage(header->StdId, 0x05);
             break;
             
         case CAN_MSG_ERROR:
             CAN_ProcessErrorMessage(data, header->DLC);
+            // 发送ACK应答 - Send ACK response
+            CAN_SendAckMessage(header->StdId, 0x06);
+            break;
+            
+        case CAN_MSG_ACK:
+            CAN_ProcessAckMessage(data, header->DLC);
+            // ACK消息本身不需要再次应答 - ACK messages don't need further ACK
             break;
             
         default:
@@ -420,6 +437,8 @@ CAN_MessageType_t CAN_GetMessageType(uint32_t id)
             return CAN_MSG_CONTROL;
         case CAN_ERROR_ID:
             return CAN_MSG_ERROR;
+        case CAN_ACK_ID:
+            return CAN_MSG_ACK;
         case CAN_WCMCU_TO_STM32_ID:
             return CAN_MSG_DATA_RESPONSE;  // Data sent by WCMCU is treated as response
         default:
@@ -1079,6 +1098,95 @@ void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan)
         uint32_t error_code = HAL_CAN_GetError(hcan);
         // CAN_DEBUG_PRINTF("CAN Error: 0x%08lX\r\n", error_code);
         CAN_UpdateErrorStats();
+    }
+}
+
+/**
+  * @brief  发送ACK应答消息
+  * @param  original_id: 原始消息ID
+  * @param  ack_code: ACK代码
+  * @retval HAL状态
+  */
+HAL_StatusTypeDef CAN_SendAckMessage(uint32_t original_id, uint8_t ack_code)
+{
+    uint8_t ack_data[CAN_ACK_LEN];
+    
+    // 构造ACK消息数据 - Construct ACK message data
+    ack_data[0] = (CAN_ACK_MAGIC >> 8) & 0xFF;  // 魔数高字节 - Magic number high byte
+    ack_data[1] = CAN_ACK_MAGIC & 0xFF;         // 魔数低字节 - Magic number low byte
+    ack_data[2] = ack_code;                     // ACK代码 - ACK code
+    ack_data[3] = (original_id & 0xFF);         // 原始消息ID低字节 - Original message ID low byte
+    
+    // 发送ACK消息 - Send ACK message
+    HAL_StatusTypeDef status = CAN_SendToWCMCU(CAN_ACK_ID, ack_data, CAN_ACK_LEN);
+    
+    if (status == HAL_OK)
+    {
+        printf("[CAN_ACK] Sent ACK for ID=0x%03X, code=0x%02X\r\n", 
+               (unsigned int)original_id, ack_code);
+    }
+    else
+    {
+        printf("[CAN_ACK] Failed to send ACK for ID=0x%03X\r\n", 
+               (unsigned int)original_id);
+    }
+    
+    return status;
+}
+
+/**
+  * @brief  处理ACK应答消息
+  * @param  data: 消息数据
+  * @param  len: 数据长度
+  * @retval None
+  */
+void CAN_ProcessAckMessage(uint8_t* data, uint8_t len)
+{
+    if (len >= CAN_ACK_LEN)
+    {
+        uint16_t magic = (data[0] << 8) | data[1];
+        uint8_t ack_code = data[2];
+        uint8_t original_id_low = data[3];
+        
+        if (magic == CAN_ACK_MAGIC)
+        {
+            printf("[CAN_ACK] Received ACK: code=0x%02X, original_ID_low=0x%02X\r\n", 
+                   ack_code, original_id_low);
+            
+            // 根据ACK代码处理不同类型的确认 - Process different types of ACK based on code
+            switch(ack_code)
+            {
+                case 0x01:
+                    printf("[CAN_ACK] Heartbeat message acknowledged\r\n");
+                    break;
+                case 0x02:
+                    printf("[CAN_ACK] Data request acknowledged\r\n");
+                    break;
+                case 0x03:
+                    printf("[CAN_ACK] Data response acknowledged\r\n");
+                    break;
+                case 0x04:
+                    printf("[CAN_ACK] Status message acknowledged\r\n");
+                    break;
+                case 0x05:
+                    printf("[CAN_ACK] Control command acknowledged\r\n");
+                    break;
+                case 0x06:
+                    printf("[CAN_ACK] Error message acknowledged\r\n");
+                    break;
+                default:
+                    printf("[CAN_ACK] Unknown ACK code: 0x%02X\r\n", ack_code);
+                    break;
+            }
+        }
+        else
+        {
+            printf("[CAN_ACK] ACK message magic number error: 0x%04X\r\n", magic);
+        }
+    }
+    else
+    {
+        printf("[CAN_ACK] ACK message length error: %d bytes\r\n", len);
     }
 }
 

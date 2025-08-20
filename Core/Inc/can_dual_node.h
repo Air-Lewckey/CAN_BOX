@@ -55,6 +55,7 @@ typedef enum {
     CAN_MSG_STATUS,             // 状态消息
     CAN_MSG_CONTROL,            // 控制消息
     CAN_MSG_ERROR,              // 错误消息
+    CAN_MSG_ACK,                // ACK应答消息
     CAN_MSG_UNKNOWN             // 未知消息
 } CAN_MessageType_t;
 
@@ -79,6 +80,7 @@ typedef enum {
 #define CAN_STATUS_ID               0x400   // 状态消息
 #define CAN_CONTROL_ID              0x500   // 控制消息
 #define CAN_ERROR_ID                0x600   // 错误消息
+#define CAN_ACK_ID                  0x700   // ACK应答消息
 
 /* 通信周期定义(ms) */
 #define CAN_HEARTBEAT_PERIOD        1000    // 心跳周期
@@ -92,12 +94,14 @@ typedef enum {
 #define CAN_DATA_RESPONSE_LEN       8       // 数据响应长度
 #define CAN_STATUS_LEN              6       // 状态消息长度
 #define CAN_CONTROL_LEN             4       // 控制消息长度
+#define CAN_ACK_LEN                 4       // ACK应答消息长度
 
 /* 消息标识符定义 */
 #define CAN_HEARTBEAT_MAGIC         0xAA55  // 心跳魔数
 #define CAN_DATA_REQ_MAGIC          0x1234  // 数据请求魔数
 #define CAN_STATUS_MAGIC            0x5678  // 状态魔数
 #define CAN_CONTROL_MAGIC           0x9ABC  // 控制魔数
+#define CAN_ACK_MAGIC               0xACE0  // ACK应答魔数
 
 /* Exported macro ------------------------------------------------------------*/
 
@@ -132,6 +136,7 @@ HAL_StatusTypeDef CAN_SendDataResponse(uint8_t* data, uint8_t len);
 HAL_StatusTypeDef CAN_SendStatusMessage(void);
 HAL_StatusTypeDef CAN_SendControlCommand(uint16_t cmd, uint16_t param);
 HAL_StatusTypeDef CAN_SendErrorMessage(uint8_t error_code, uint8_t error_data);
+HAL_StatusTypeDef CAN_SendAckMessage(uint32_t original_id, uint8_t ack_code);
 
 /* 消息处理函数 */
 void CAN_ProcessReceivedMessage(CAN_RxHeaderTypeDef* header, uint8_t* data);
@@ -142,6 +147,7 @@ void CAN_ProcessDataResponse(uint8_t* data, uint8_t len);
 void CAN_ProcessStatusMessage(uint8_t* data, uint8_t len);
 void CAN_ProcessControlCommand(uint8_t* data, uint8_t len);
 void CAN_ProcessErrorMessage(uint8_t* data, uint8_t len);
+void CAN_ProcessAckMessage(uint8_t* data, uint8_t len);
 
 /* 状态监控函数 */
 CAN_NodeStatus_t CAN_GetWCMCUStatus(void);
