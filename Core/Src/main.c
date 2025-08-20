@@ -140,21 +140,11 @@ int main(void)
   MX_CAN1_Init();
   // MX_CAN2_Init();  // 禁用CAN2初始化
   /* USER CODE BEGIN 2 */
-  // Initialize CAN1 Dual Node (接收功能)
-  if (CAN_DualNode_Init() == HAL_OK) {
-    // printf("[CAN1] Dual Node initialized - Ready to receive CAN messages\r\n");  // 已删除
-  } else {
-    printf("[CAN1] Dual Node initialization failed!\r\n");
-    Error_Handler();
-  }
+  // 初始化CAN双节点通信 - Initialize CAN dual node communication
+  CAN_DualNode_Init();
   
-  // Initialize CAN1 Trigger Send Module
-  if (CAN_TriggerSend_Init() == HAL_OK) {
-    // printf("[CAN1] Trigger Send initialized - Send '1', '2', '3' to trigger messages\r\n");  // 已删除
-  } else {
-    printf("[CAN1] Trigger send initialization failed!\r\n");
-    Error_Handler();
-  }
+  // 初始化CAN触发发送模块 - Initialize CAN trigger send module
+  CAN_TriggerSend_Init();
   
   // CAN2相关功能已禁用 - 只使用CAN1
   // Initialize CAN2 Demo (receive only mode)
@@ -384,6 +374,17 @@ int _write(int file, char *ptr, int len)
 {
   HAL_UART_Transmit(&huart2, (uint8_t*)ptr, len, HAL_MAX_DELAY);
   return len;
+}
+
+/**
+  * @brief  重定向单个字符输出到USART2 - Redirect single character output to USART2
+  * @param  ch: 要输出的字符 - Character to output
+  * @retval 输出的字符 - Character output
+  */
+int __io_putchar(int ch)
+{
+  HAL_UART_Transmit(&huart2, (uint8_t*)&ch, 1, HAL_MAX_DELAY);
+  return ch;
 }
 
 /* CAN receive callback function has been moved to can_dual_node.c file */
