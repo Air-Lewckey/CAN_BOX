@@ -24,12 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include "can.h"
 #include "usart.h"
-#include "can_trigger_send.h"  // Added trigger send module
-#include "can2_demo.h"  // Added CAN2 demo module
-#include "can2_test.h"  // Added CAN2 test functionality
-#include "can1_can2_bridge_test.h"
-#include "can_dual_node.h"  // Added dual node communication header file
-// #include "mcp2515_test_demo.h"  // Commented MCP2515 related code
+#include "can_testbox_api.h"  // CAN测试盒专业API
 #include <stdio.h>
 /* USER CODE END Includes */
 
@@ -63,18 +58,11 @@ const osThreadAttr_t defaultTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
-/* Definitions for CANSendTask */
-osThreadId_t CANSendTaskHandle;
-const osThreadAttr_t CANSendTask_attributes = {
-  .name = "CANSendTask",
-  .stack_size = 512 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
-};
-/* Definitions for CANReceiveTask */
-osThreadId_t CANReceiveTaskHandle;
-const osThreadAttr_t CANReceiveTask_attributes = {
-  .name = "CANReceiveTask",
-  .stack_size = 512 * 4,
+/* Definitions for CANTestBoxTask */
+osThreadId_t CANTestBoxTaskHandle;
+const osThreadAttr_t CANTestBoxTask_attributes = {
+  .name = "CANTestBoxTask",
+  .stack_size = 1024 * 4,  // 增加堆栈大小以支持API功能
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for myQueue01 */
@@ -94,8 +82,7 @@ void MX_USART2_UART_Init(void);
 void MX_CAN1_Init(void);
 void MX_CAN2_Init(void);
 void StartDefaultTask(void *argument);
-void StartCANSendTask(void *argument);
-void StartCANReceiveTask(void *argument);
+void StartCANTestBoxTask(void *argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -140,51 +127,20 @@ int main(void)
   MX_CAN1_Init();
   // MX_CAN2_Init();  // 禁用CAN2初始化
   /* USER CODE BEGIN 2 */
-  // 初始化CAN双节点通信 - Initialize CAN dual node communication
-  CAN_DualNode_Init();
-  
-  // 初始化CAN触发发送模块 - Initialize CAN trigger send module
-  CAN_TriggerSend_Init();
-  
-  // CAN2相关功能已禁用 - 只使用CAN1
-  // Initialize CAN2 Demo (receive only mode)
-  // if (CAN2_Demo_Init() == HAL_OK) {
-  //   printf("CAN2: Initialized (Receive Only Mode)\r\n");
-  //   printf("CAN2 will display all CAN bus messages\r\n\r\n");
-  // } else {
-  //   printf("\r\nCAN2 initialization failed!\r\n");
-  //   Error_Handler();
-  // }
-  
-  // CAN2 enhanced test is disabled - receive only mode
-  // if (CAN2_Test_Init() == HAL_OK) {
-  //   printf("CAN2 Enhanced Test: Initialized\r\n");
-  // } else {
-  //   printf("CAN2 Enhanced Test initialization failed!\r\n");
-  // }
-  
-  // CAN1-CAN2 bridge test is disabled - CAN2 receive only
-  // if (CAN1_CAN2_BridgeTest_Init() == HAL_OK) {
-  //   printf("\r\n=== CAN1-CAN2 Bridge Test ===\r\n");
-  //   printf("CAN1-CAN2 Bridge Test: Initialized\r\n");
-  // } else {
-  //   printf("CAN1-CAN2 Bridge Test initialization failed!\r\n");
-  // }
-  
-  /*
-  // MCP2515 related code is commented - hardware removed
-  // Initialize MCP2515 Test Demo
-  if (MCP2515_TestDemo_Init() == HAL_OK) {
-    printf("MCP2515 Status: Initialized (500Kbps)\r\n");
-    printf("\r\n=== Dual CAN System Configuration ===\r\n");
-    printf("CAN1 Message ID: 0x100-0x500 (STM32 Built-in CAN)\r\n");
-    printf("MCP2515 Message ID: 0x600-0x670 (External CAN Controller)\r\n");
-    printf("Starting periodic test message transmission...\r\n\r\n");
+  // 初始化CAN测试盒 - Initialize CAN TestBox
+  CAN_TestBox_Status_t status = CAN_TestBox_Init(&hcan1);
+  if (status == CAN_TESTBOX_OK) {
+    printf("CAN TestBox: Initialized successfully\r\n");
+    
+    // 启用CAN测试盒
+    CAN_TestBox_Enable(true);
+    printf("CAN TestBox: Ready for operation\r\n");
   } else {
-    printf("\r\nMCP2515 Test Demo initialization failed!\r\n");
-    printf("Continue running CAN1 test...\r\n\r\n");
+    printf("CAN TestBox: Initialization failed (Error: %d)\r\n", status);
+    Error_Handler();
   }
-  */
+  
+
   /* USER CODE END 2 */
 
   /* Init scheduler */
@@ -214,11 +170,8 @@ int main(void)
   /* creation of defaultTask */
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
-  /* creation of CANSendTask */
-  CANSendTaskHandle = osThreadNew(StartCANSendTask, NULL, &CANSendTask_attributes);
-
-  /* creation of CANReceiveTask */
-  CANReceiveTaskHandle = osThreadNew(StartCANReceiveTask, NULL, &CANReceiveTask_attributes);
+  /* creation of CANTestBoxTask */
+  CANTestBoxTaskHandle = osThreadNew(StartCANTestBoxTask, NULL, &CANTestBoxTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* CAN1-CAN2 bridge test task is disabled - CAN2 only acts as receiver */
@@ -424,47 +377,90 @@ void StartDefaultTask(void *argument)
   /* USER CODE END 5 */
 }
 
-/* USER CODE BEGIN Header_StartCANSendTask */
+/* USER CODE BEGIN Header_StartCANTestBoxTask */
 /**
-* @brief Function implementing the CANSendTask thread.
+* @brief Function implementing the CANTestBoxTask thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartCANSendTask */
-void StartCANSendTask(void *argument)
+/* USER CODE END Header_StartCANTestBoxTask */
+void StartCANTestBoxTask(void *argument)
 {
-  /* USER CODE BEGIN StartCANSendTask */
-  /* CAN1 trigger send task - UART command triggered CAN sending */
-  CAN_TriggerSend_Task(argument);  // Trigger-based CAN1 message sending
-  /* USER CODE END StartCANSendTask */
-}
-
-/* USER CODE BEGIN Header_StartCANReceiveTask */
-/**
-* @brief Function implementing the CANReceiveTask thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartCANReceiveTask */
-void StartCANReceiveTask(void *argument)
-{
-  /* USER CODE BEGIN StartCANReceiveTask */
+  /* USER CODE BEGIN StartCANTestBoxTask */
+  
+  // 等待系统完全初始化
+  osDelay(100);
+  
+  printf("\r\n=== CAN TestBox Professional API Demo ===\r\n");
+  printf("CAN TestBox Task started\r\n");
+  
+  // 设置接收回调函数
+  CAN_TestBox_SetRxCallback(NULL);  // 使用默认回调
+  
+  // 演示单帧事件报文发送
+  printf("\r\n--- Single Frame Event Test ---\r\n");
+  uint8_t test_data[] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
+  CAN_TestBox_Status_t status = CAN_TestBox_SendSingleFrameQuick(0x123, 8, test_data, false);
+  if (status == CAN_TESTBOX_OK) {
+    printf("Single frame sent successfully (ID: 0x123)\r\n");
+  } else {
+    printf("Single frame send failed: %d\r\n", status);
+  }
+  
+  // 演示周期性报文发送
+  printf("\r\n--- Periodic Message Test ---\r\n");
+  CAN_TestBox_Message_t periodic_msg = {
+    .id = 0x100,
+    .dlc = 8,
+    .data = {0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x80},
+    .is_extended = false,
+    .is_remote = false
+  };
+  
+  uint8_t handle_id;
+  status = CAN_TestBox_StartPeriodicMessage(&periodic_msg, CAN_TESTBOX_PERIOD_1000MS, &handle_id);
+  if (status == CAN_TESTBOX_OK) {
+    printf("Periodic message started (ID: 0x100, Period: 1000ms, Handle: %d)\r\n", handle_id);
+  } else {
+    printf("Periodic message start failed: %d\r\n", status);
+  }
+  
+  // 演示连续帧报文发送
+  printf("\r\n--- Burst Frames Test ---\r\n");
+  uint8_t burst_data[] = {0xAA, 0xBB, 0xCC, 0xDD};
+  status = CAN_TestBox_SendBurstFramesQuick(0x200, 4, burst_data, 5, CAN_TESTBOX_INTERVAL_100MS, true);
+  if (status == CAN_TESTBOX_OK) {
+    printf("Burst frames sent (ID: 0x200, Count: 5, Interval: 100ms)\r\n");
+  } else {
+    printf("Burst frames send failed: %d\r\n", status);
+  }
+  
+  printf("\r\n--- CAN TestBox Running ---\r\n");
+  printf("Monitoring CAN bus for incoming messages...\r\n");
+  
+  uint32_t task_counter = 0;
+  
   /* Infinite loop */
   for(;;)
   {
-    // Enable CAN2 task for status monitoring and hardware connection testing
-    CAN2_Demo_Task(argument);  // Re-enabled - for status monitoring and connection testing
-    // CAN2_Test_Task();          // Keep disabled - CAN2 receive only
+    // 调用CAN测试盒主任务
+    CAN_TestBox_Task();
     
-    osDelay(10);  // Reduce delay to ensure tasks run normally
+    // 每10秒显示一次统计信息
+    if (++task_counter % 10000 == 0) {
+      CAN_TestBox_Statistics_t stats;
+      if (CAN_TestBox_GetStatistics(&stats) == CAN_TESTBOX_OK) {
+        printf("\r\n--- Statistics ---\r\n");
+        printf("TX: %lu, RX: %lu, Errors: %lu\r\n", 
+               stats.tx_count, stats.rx_count, stats.error_count);
+      }
+    }
+    
+    // 任务延时
+    osDelay(1);
   }
   
-  /*
-  // MCP2515 related task code is commented - hardware removed
-  // Run MCP2515 test demo task directly (it has its own infinite loop)
-  MCP2515_TestDemo_Task(argument);
-  */
-  /* USER CODE END StartCANReceiveTask */
+  /* USER CODE END StartCANTestBoxTask */
 }
 
 /**
