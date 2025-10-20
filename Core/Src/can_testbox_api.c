@@ -21,12 +21,6 @@ static bool g_initialized = false;
 // 运行状态标志
 static bool g_running = false;
 
-// 发送队列
-static osMessageQueueId_t g_send_queue = NULL;
-static const osMessageQueueAttr_t g_send_queue_attr = {
-    .name = "CANTestBoxSendQueue"
-};
-
 // 接收队列
 static osMessageQueueId_t g_receive_queue = NULL;
 static const osMessageQueueAttr_t g_receive_queue_attr = {
@@ -76,16 +70,9 @@ CAN_TestBox_Status_t CAN_TestBox_Init(CAN_HandleTypeDef *hcan)
     // 保存CAN句柄
     g_hcan = hcan;
     
-    // 创建发送队列
-    g_send_queue = osMessageQueueNew(CAN_TESTBOX_SEND_QUEUE_SIZE, sizeof(CAN_TestBox_Message_t), &g_send_queue_attr);
-    if (g_send_queue == NULL) {
-        return CAN_TESTBOX_ERROR;
-    }
-    
     // 创建接收队列
     g_receive_queue = osMessageQueueNew(CAN_TESTBOX_RECEIVE_QUEUE_SIZE, sizeof(CAN_TestBox_Message_t), &g_receive_queue_attr);
     if (g_receive_queue == NULL) {
-        osMessageQueueDelete(g_send_queue);
         return CAN_TESTBOX_ERROR;
     }
     
@@ -105,7 +92,6 @@ CAN_TestBox_Status_t CAN_TestBox_Init(CAN_HandleTypeDef *hcan)
     
     // 启动CAN
     if (HAL_CAN_Start(g_hcan) != HAL_OK) {
-        osMessageQueueDelete(g_send_queue);
         osMessageQueueDelete(g_receive_queue);
         return CAN_TESTBOX_ERROR;
     }
@@ -113,7 +99,6 @@ CAN_TestBox_Status_t CAN_TestBox_Init(CAN_HandleTypeDef *hcan)
     // 激活CAN接收中断
     if (HAL_CAN_ActivateNotification(g_hcan, CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_ERROR) != HAL_OK) {
         HAL_CAN_Stop(g_hcan);
-        osMessageQueueDelete(g_send_queue);
         osMessageQueueDelete(g_receive_queue);
         return CAN_TESTBOX_ERROR;
     }
@@ -121,7 +106,7 @@ CAN_TestBox_Status_t CAN_TestBox_Init(CAN_HandleTypeDef *hcan)
     g_initialized = true;
     g_running = true;
     
-    printf("[CAN TestBox] Initialized successfully\r\n");
+    // 不打印初始化成功信息 (Don't print initialization success message)
     return CAN_TESTBOX_OK;
 }
 
@@ -141,11 +126,6 @@ CAN_TestBox_Status_t CAN_TestBox_DeInit(void)
     HAL_CAN_Stop(g_hcan);
     
     // 删除队列
-    if (g_send_queue != NULL) {
-        osMessageQueueDelete(g_send_queue);
-        g_send_queue = NULL;
-    }
-    
     if (g_receive_queue != NULL) {
         osMessageQueueDelete(g_receive_queue);
         g_receive_queue = NULL;
@@ -155,7 +135,7 @@ CAN_TestBox_Status_t CAN_TestBox_DeInit(void)
     g_running = false;
     g_hcan = NULL;
     
-    printf("[CAN TestBox] Deinitialized\r\n");
+    // 不打印反初始化信息 (Don't print deinitialization information)
     return CAN_TESTBOX_OK;
 }
 
@@ -254,8 +234,7 @@ CAN_TestBox_Status_t CAN_TestBox_StartPeriodicMessage(const CAN_TestBox_Message_
     *handle_id = index;
     g_periodic_msg_count++;
     
-    printf("[CAN TestBox] Periodic message started: ID=0x%03X, Period=%dms, Handle=%d\r\n", 
-           (unsigned int)message->id, (int)period_ms, index);
+    // 不打印周期性消息启动信息 (Don't print periodic message start information)
     
     return CAN_TESTBOX_OK;
 }
@@ -280,7 +259,7 @@ CAN_TestBox_Status_t CAN_TestBox_StopPeriodicMessage(uint8_t handle_id)
     g_periodic_messages[handle_id].enabled = false;
     g_periodic_msg_count--;
     
-    printf("[CAN TestBox] Periodic message stopped: Handle=%d\r\n", handle_id);
+    // 不打印周期性消息停止信息 (Don't print periodic message stop information)
     
     return CAN_TESTBOX_OK;
 }
@@ -345,7 +324,7 @@ CAN_TestBox_Status_t CAN_TestBox_StopAllPeriodicMessages(void)
     
     g_periodic_msg_count = 0;
     
-    printf("[CAN TestBox] All periodic messages stopped\r\n");
+    // 不打印所有周期性消息停止信息 (Don't print all periodic messages stop information)
     
     return CAN_TESTBOX_OK;
 }
@@ -373,14 +352,13 @@ CAN_TestBox_Status_t CAN_TestBox_SendBurstFrames(const CAN_TestBox_BurstMsg_t *b
     
     CAN_TestBox_Message_t current_msg = burst_config->message;
     
-    printf("[CAN TestBox] Sending burst frames: Count=%d, Interval=%dms\r\n", 
-           burst_config->burst_count, burst_config->interval_ms);
+    // 不打印发送连续帧信息 (Don't print burst frames sending information)
     
     for (uint16_t i = 0; i < burst_config->burst_count; i++) {
         // 发送当前消息
         status = CAN_TestBox_SendMessage_Internal(&current_msg);
         if (status != CAN_TESTBOX_OK) {
-            printf("[CAN TestBox] Burst frame %d send failed\r\n", i);
+            // 不打印连续帧发送失败信息 (Don't print burst frame send failure information)
             return status;
         }
         
@@ -402,7 +380,7 @@ CAN_TestBox_Status_t CAN_TestBox_SendBurstFrames(const CAN_TestBox_BurstMsg_t *b
         }
     }
     
-    printf("[CAN TestBox] Burst frames completed\r\n");
+    // 不打印连续帧完成信息 (Don't print burst frames completion information)
     
     return CAN_TESTBOX_OK;
 }
@@ -540,9 +518,9 @@ CAN_TestBox_Status_t CAN_TestBox_Enable(bool enable)
     g_running = enable;
     
     if (enable) {
-        printf("[CAN TestBox] Enabled\r\n");
+        // 不打印启用信息 (Don't print enable information)
     } else {
-        printf("[CAN TestBox] Disabled\r\n");
+        // 不打印禁用信息 (Don't print disable information)
     }
     
     return CAN_TESTBOX_OK;
@@ -579,7 +557,7 @@ CAN_TestBox_Status_t CAN_TestBox_SelfTest(void)
         return CAN_TESTBOX_NOT_INITIALIZED;
     }
     
-    printf("[CAN TestBox] Self test started\r\n");
+    // 不打印自检开始信息 (Don't print self test start information)
     
     // 发送自检消息
     CAN_TestBox_Message_t test_msg = {
@@ -593,9 +571,9 @@ CAN_TestBox_Status_t CAN_TestBox_SelfTest(void)
     CAN_TestBox_Status_t status = CAN_TestBox_SendMessage_Internal(&test_msg);
     
     if (status == CAN_TESTBOX_OK) {
-        printf("[CAN TestBox] Self test passed\r\n");
+        // 不打印自检通过信息 (Don't print self test pass information)
     } else {
-        printf("[CAN TestBox] Self test failed\r\n");
+        // 不打印自检失败信息 (Don't print self test fail information)
     }
     
     return status;
@@ -656,11 +634,32 @@ static CAN_TestBox_Status_t CAN_TestBox_SendMessage_Internal(const CAN_TestBox_M
     if (hal_status == HAL_OK) {
         g_statistics.tx_total_count++;
         g_statistics.tx_success_count++;
+        
+        // 按照用户要求的格式打印发送日志
+        printf("[TX] ID:0x%03X, Data:", (unsigned int)message->id);
+        
+        if (!message->is_remote) {
+            for (int i = 0; i < message->dlc; i++) {
+                printf("%02X", message->data[i]);
+                if (i < message->dlc - 1) printf(" ");
+            }
+        } else {
+            printf("RTR");
+        }
+        
+        printf(" [END]\r\n");
+        
         return CAN_TESTBOX_OK;
     } else {
         g_statistics.tx_total_count++;
         g_statistics.tx_error_count++;
         g_statistics.last_error_code = hal_status;
+        
+        // 打印发送错误信息
+        printf("[CAN-ERROR] Failed to send message - ID:0x%03X, Error:%d\r\n", 
+               (unsigned int)message->id, 
+               hal_status);
+        
         return CAN_TESTBOX_ERROR;
     }
 }
@@ -744,59 +743,59 @@ static CAN_TestBox_Status_t CAN_TestBox_ValidateMessage(const CAN_TestBox_Messag
 /* ========================= CAN中断回调函数 ========================= */
 
 /**
- * @brief CAN接收中断回调函数
+ * @brief CAN TestBox接收处理函数
+ * @note 在CAN接收中断中调用此函数处理接收到的消息
  */
-void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+void CAN_TestBox_ProcessRxMessage(CAN_HandleTypeDef *hcan, CAN_RxHeaderTypeDef *rx_header, uint8_t *rx_data)
 {
     if (hcan != g_hcan || !g_initialized) {
         return;
     }
     
-    CAN_RxHeaderTypeDef rx_header;
     CAN_TestBox_Message_t rx_message;
     
-    // 获取接收消息
-    if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rx_header, rx_message.data) == HAL_OK) {
-        // 填充消息结构体
-        if (rx_header.IDE == CAN_ID_EXT) {
-            rx_message.id = rx_header.ExtId;
-            rx_message.is_extended = true;
-        } else {
-            rx_message.id = rx_header.StdId;
-            rx_message.is_extended = false;
-        }
-        
-        rx_message.dlc = rx_header.DLC;
-        rx_message.is_remote = (rx_header.RTR == CAN_RTR_REMOTE);
-        rx_message.timestamp = CAN_TestBox_GetTick();
-        
-        // 更新统计信息
-        g_statistics.rx_total_count++;
-        g_statistics.rx_valid_count++;
-        
-        // 添加到接收队列
+    // 填充消息结构体
+    if (rx_header->IDE == CAN_ID_EXT) {
+        rx_message.id = rx_header->ExtId;
+        rx_message.is_extended = true;
+    } else {
+        rx_message.id = rx_header->StdId;
+        rx_message.is_extended = false;
+    }
+    
+    rx_message.dlc = rx_header->DLC;
+    rx_message.is_remote = (rx_header->RTR == CAN_RTR_REMOTE);
+    rx_message.timestamp = CAN_TestBox_GetTick();
+    
+    // 复制数据
+    for (uint8_t i = 0; i < rx_message.dlc && i < 8; i++) {
+        rx_message.data[i] = rx_data[i];
+    }
+    
+    // 更新统计信息
+    g_statistics.rx_total_count++;
+    g_statistics.rx_valid_count++;
+    
+    // 仅当没有设置回调时才添加到接收队列
+    if (g_rx_callback == NULL) {
         if (osMessageQueuePut(g_receive_queue, &rx_message, 0, 0) != osOK) {
             // 队列满，丢弃消息
         }
-        
-        // 调用回调函数
-        if (g_rx_callback != NULL) {
-            g_rx_callback(&rx_message);
-        }
-        
-        // 打印接收信息
-        printf("[CAN-RX] ID:0x%03X, DLC:%d, Data:", (unsigned int)rx_message.id, rx_message.dlc);
-        for (uint8_t i = 0; i < rx_message.dlc; i++) {
-            printf("%02X ", rx_message.data[i]);
-        }
-        printf("\r\n");
     }
+    
+    // 调用回调函数
+    if (g_rx_callback != NULL) {
+        g_rx_callback(&rx_message);
+    }
+    
+    // 不打印接收信息 (Don't print reception information)
 }
 
 /**
- * @brief CAN错误回调函数
+ * @brief CAN TestBox错误处理函数
+ * @note 在CAN错误中断中调用此函数处理错误
  */
-void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan)
+void CAN_TestBox_ProcessError(CAN_HandleTypeDef *hcan)
 {
     if (hcan != g_hcan || !g_initialized) {
         return;
@@ -805,5 +804,26 @@ void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan)
     g_statistics.bus_error_count++;
     g_statistics.last_error_code = HAL_CAN_GetError(hcan);
     
-    printf("[CAN TestBox] CAN Error: 0x%08X\r\n", (unsigned int)g_statistics.last_error_code);
+    // 不打印CAN错误信息 (Don't print CAN error information)
 }
+
+/* 注意：以下回调函数已移至can_dual_node.c中统一处理，避免重复定义 */
+/* 如需单独使用CAN TestBox API，请在can_dual_node.c中调用CAN_TestBox_ProcessRxMessage和CAN_TestBox_ProcessError函数 */
+
+#if 0 // 已禁用，避免与can_dual_node.c中的回调函数冲突
+/**
+ * @brief CAN接收中断回调函数
+ */
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
+{
+    // 已移至can_dual_node.c中统一处理
+}
+
+/**
+ * @brief CAN错误回调函数
+ */
+void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan)
+{
+    // 已移至can_dual_node.c中统一处理
+}
+#endif

@@ -140,6 +140,12 @@ typedef enum {
     CAN_TESTBOX_NOT_FOUND           // 未找到
 } CAN_TestBox_Status_t;
 
+/**
+ * @brief CAN接收回调函数类型定义
+ * @param message: 接收到的CAN消息指针
+ */
+typedef void (*CAN_TestBox_RxCallback_t)(const CAN_TestBox_Message_t *message);
+
 /* ========================= API接口声明 ========================= */
 
 /**
@@ -266,25 +272,16 @@ CAN_TestBox_Status_t CAN_TestBox_SendBurstFramesQuick(uint32_t id, uint8_t dlc, 
 
 /**
  * @brief 设置接收回调函数
- * @param callback: 回调函数指针
+ * @param callback: 回调函数指针，设置为NULL则禁用回调
  * @return CAN_TestBox_Status_t: 返回状态
+ * 
+ * 使用示例:
+ * void MyRxCallback(const CAN_TestBox_Message_t *message) {
+ *     printf("Received CAN message ID: 0x%X\n", message->id);
+ * }
+ * CAN_TestBox_SetRxCallback(MyRxCallback);
  */
-typedef void (*CAN_TestBox_RxCallback_t)(const CAN_TestBox_Message_t *message);
 CAN_TestBox_Status_t CAN_TestBox_SetRxCallback(CAN_TestBox_RxCallback_t callback);
-
-/**
- * @brief 从接收队列获取消息
- * @param message: 消息指针
- * @param timeout_ms: 超时时间(ms)
- * @return CAN_TestBox_Status_t: 返回状态
- */
-CAN_TestBox_Status_t CAN_TestBox_ReceiveMessage(CAN_TestBox_Message_t *message, uint32_t timeout_ms);
-
-/**
- * @brief 清空接收队列
- * @return CAN_TestBox_Status_t: 返回状态
- */
-CAN_TestBox_Status_t CAN_TestBox_ClearRxQueue(void);
 
 /* ========================= 5. 过滤器管理接口 ========================= */
 
@@ -386,6 +383,24 @@ void CAN_TestBox_Task(void);
  * @return bool: true-运行中, false-已停止
  */
 bool CAN_TestBox_IsRunning(void);
+
+/* ========================= 内部处理函数 ========================= */
+
+/**
+ * @brief CAN TestBox接收处理函数
+ * @note 在CAN接收中断中调用此函数处理接收到的消息
+ * @param hcan CAN句柄指针
+ * @param rx_header 接收消息头指针
+ * @param rx_data 接收数据指针
+ */
+void CAN_TestBox_ProcessRxMessage(CAN_HandleTypeDef *hcan, CAN_RxHeaderTypeDef *rx_header, uint8_t *rx_data);
+
+/**
+ * @brief CAN TestBox错误处理函数
+ * @note 在CAN错误中断中调用此函数处理错误
+ * @param hcan CAN句柄指针
+ */
+void CAN_TestBox_ProcessError(CAN_HandleTypeDef *hcan);
 
 #ifdef __cplusplus
 }

@@ -25,6 +25,8 @@
 #include "can.h"
 #include "usart.h"
 #include "can_testbox_api.h"  // CAN测试盒专业API
+#include "can_testbox_peps_helper.h"  // PEPS系统CAN测试辅助模块
+#include "can_testbox_peps_filter.h"  // PEPS系统CAN过滤器配置模块
 #include <stdio.h>
 /* USER CODE END Includes */
 
@@ -48,7 +50,6 @@ SPI_HandleTypeDef hspi1;
 
 /* CAN and UART handles are defined in their respective module files */
 extern CAN_HandleTypeDef hcan1;
-extern CAN_HandleTypeDef hcan2;
 extern UART_HandleTypeDef huart2;
 
 /* Definitions for defaultTask */
@@ -80,7 +81,6 @@ static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 void MX_USART2_UART_Init(void);
 void MX_CAN1_Init(void);
-void MX_CAN2_Init(void);
 void StartDefaultTask(void *argument);
 void StartCANTestBoxTask(void *argument);
 
@@ -127,14 +127,24 @@ int main(void)
   MX_CAN1_Init();
   // MX_CAN2_Init();  // 禁用CAN2初始化
   /* USER CODE BEGIN 2 */
+  // 配置PEPS系统CAN过滤器，只接收指定报文
+  // 注意：过滤器配置必须在CAN启动前完成
+  // 配置PEPS过滤器，但不打印任何信息，避免乱码
+  CAN_ConfigurePepsFilters();
+  
   // 初始化CAN测试盒 - Initialize CAN TestBox
   CAN_TestBox_Status_t status = CAN_TestBox_Init(&hcan1);
   if (status == CAN_TESTBOX_OK) {
-    printf("CAN TestBox: Initialized successfully\r\n");
-    
     // 启用CAN测试盒
     CAN_TestBox_Enable(true);
-    printf("CAN TestBox: Ready for operation\r\n");
+    // 不打印就绪信息 (Don't print ready information)
+    
+    // 初始化PEPS辅助模块 (Initialize PEPS helper module)
+    status = PEPS_Helper_Init();
+    if (status != CAN_TESTBOX_OK) {
+      // 不打印初始化成功或失败信息 (Don't print initialization success or failure message)
+      // 不阻断程序运行 (Don't block program execution)
+    }
   } else {
     printf("CAN TestBox: Initialization failed (Error: %d)\r\n", status);
     Error_Handler();
@@ -174,13 +184,6 @@ int main(void)
   CANTestBoxTaskHandle = osThreadNew(StartCANTestBoxTask, NULL, &CANTestBoxTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
-  /* CAN1-CAN2 bridge test task is disabled - CAN2 only acts as receiver */
-  // const osThreadAttr_t bridgeTestTaskAttributes = {
-  //   .name = "BridgeTestTask",
-  //   .stack_size = 512 * 4,
-  //   .priority = (osPriority_t) osPriorityNormal,
-  // };
-  // osThreadNew(CAN1_CAN2_BridgeTest_Task, NULL, &bridgeTestTaskAttributes);
   /* USER CODE END RTOS_THREADS */
 
   /* USER CODE BEGIN RTOS_EVENTS */
@@ -307,11 +310,6 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
-  /*
-  // MCP2515 related GPIO initialization code is commented - hardware removed
-  // Set MCP2515 CS pin to high level (deselected state)
-  HAL_GPIO_WritePin(MCP2515_CS_GPIO_Port, MCP2515_CS_Pin, GPIO_PIN_SET);
-  */
   /* USER CODE END MX_GPIO_Init_2 */
 }
 
@@ -358,20 +356,6 @@ void StartDefaultTask(void *argument)
   /* Infinite loop */
   for(;;)
   {
-    // Print CAN1 and CAN2 statistics
-    // CAN_PrintStats();
-    // CAN_PrintNodeStatus();
-    
-    // Print CAN1 status
-    // uint32_t can1_state = HAL_CAN_GetState(&hcan1);
-    // printf("CAN1 State: %lu\r\n", can1_state);
-    
-    // Print CAN2 status
-    // uint32_t can2_state = HAL_CAN_GetState(&hcan2);
-    // printf("CAN2 State: %lu\r\n", can2_state);
-    
-    // printf("\r\n");
-    
     osDelay(10000);  // 10 second delay
   }
   /* USER CODE END 5 */
@@ -388,75 +372,35 @@ void StartCANTestBoxTask(void *argument)
 {
   /* USER CODE BEGIN StartCANTestBoxTask */
   
-  // 等待系统完全初始化
+  // 等待系统完全初始化 (Wait for system to fully initialize)
   osDelay(100);
   
-  printf("\r\n=== CAN TestBox Professional API Demo ===\r\n");
-  printf("CAN TestBox Task started\r\n");
+  // 设置接收回调函数 (Set receive callback function)
+  CAN_TestBox_SetRxCallback(NULL);  // 使用默认回调 (Use default callback)
   
-  // 设置接收回调函数
-  CAN_TestBox_SetRxCallback(NULL);  // 使用默认回调
-  
-  // 演示单帧事件报文发送
-  printf("\r\n--- Single Frame Event Test ---\r\n");
-  uint8_t test_data[] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88};
-  CAN_TestBox_Status_t status = CAN_TestBox_SendSingleFrameQuick(0x123, 8, test_data, false);
-  if (status == CAN_TESTBOX_OK) {
-    printf("Single frame sent successfully (ID: 0x123)\r\n");
-  } else {
-    printf("Single frame send failed: %d\r\n", status);
+  // 初始化PEPS辅助模块
+  if (PEPS_Helper_Init() != HAL_OK) {
+    // 初始化失败，但不打印错误信息
   }
   
-  // 演示周期性报文发送
-  printf("\r\n--- Periodic Message Test ---\r\n");
-  CAN_TestBox_Message_t periodic_msg = {
-    .id = 0x100,
-    .dlc = 8,
-    .data = {0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x80},
-    .is_extended = false,
-    .is_remote = false
-  };
+  // 不打印PEPS系统使用说明 (Don't print PEPS system instructions)
   
-  uint8_t handle_id;
-  status = CAN_TestBox_StartPeriodicMessage(&periodic_msg, CAN_TESTBOX_PERIOD_1000MS, &handle_id);
-  if (status == CAN_TESTBOX_OK) {
-    printf("Periodic message started (ID: 0x100, Period: 1000ms, Handle: %d)\r\n", handle_id);
-  } else {
-    printf("Periodic message start failed: %d\r\n", status);
-  }
+  // 初始化时不发送任何报文 (No message sent during initialization)
   
-  // 演示连续帧报文发送
-  printf("\r\n--- Burst Frames Test ---\r\n");
-  uint8_t burst_data[] = {0xAA, 0xBB, 0xCC, 0xDD};
-  status = CAN_TestBox_SendBurstFramesQuick(0x200, 4, burst_data, 5, CAN_TESTBOX_INTERVAL_100MS, true);
-  if (status == CAN_TESTBOX_OK) {
-    printf("Burst frames sent (ID: 0x200, Count: 5, Interval: 100ms)\r\n");
-  } else {
-    printf("Burst frames send failed: %d\r\n", status);
-  }
-  
-  printf("\r\n--- CAN TestBox Running ---\r\n");
-  printf("Monitoring CAN bus for incoming messages...\r\n");
+  // 不打印运行状态信息 (Don't print running status information)
   
   uint32_t task_counter = 0;
   
   /* Infinite loop */
   for(;;)
   {
-    // 调用CAN测试盒主任务
+    // 调用CAN测试盒主任务 (Call CAN TestBox main task)
     CAN_TestBox_Task();
     
-    // 每10秒显示一次统计信息
-    if (++task_counter % 10000 == 0) {
-      CAN_TestBox_Statistics_t stats;
-      if (CAN_TestBox_GetStatistics(&stats) == CAN_TESTBOX_OK) {
-        printf("\r\n--- Statistics ---\r\n");
-        printf("TX: %lu, RX: %lu, Errors: %lu\r\n", 
-               stats.tx_count, stats.rx_count, stats.error_count);
-      }
-    }
+    // 不显示统计信息 (Don't display statistics)
+    ++task_counter;
     
-    // 任务延时
+    // 任务延时 (Task delay)
     osDelay(1);
   }
   
